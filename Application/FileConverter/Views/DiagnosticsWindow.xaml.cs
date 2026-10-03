@@ -5,7 +5,7 @@ namespace FileConverter.Views
     using System.Windows;
 
     /// <summary>
-    /// Interaction logic for DiagnosticsWindow.
+    /// 日志窗口的交互逻辑。
     /// </summary>
     public partial class DiagnosticsWindow : Window
     {

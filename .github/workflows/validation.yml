@@ -1,0 +1,35 @@
+name: 构建与回归验证
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: microsoft/setup-msbuild@v2
+      - name: 构建发布版本与安装包
+        shell: pwsh
+        run: ./eng/Build.ps1
+      - name: 验证调度与日志
+        shell: pwsh
+        run: |
+          ./Tests/Run-SchedulingRegression.ps1
+          ./Tests/Run-DiagnosticsRegression.ps1
+      - name: 验证任务列表虚拟化
+        shell: pwsh
+        run: ./Tests/Run-UiRegression.ps1
+      - name: 验证真实转换与资源清理
+        shell: pwsh
+        run: ./Tests/Run-ConversionRegression.ps1 -IncludeLifecycleChecks
+      - name: 验证安装包依赖清单
+        shell: pwsh
+        run: ./Tests/Run-PackageRegression.ps1

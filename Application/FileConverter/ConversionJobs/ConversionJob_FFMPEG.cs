@@ -8,23 +8,25 @@ namespace FileConverter.ConversionJobs
     using System.Globalization;
     using System.IO;
     using System.Text.RegularExpressions;
+    using System.Threading.Tasks;
     using CommunityToolkit.Mvvm.DependencyInjection;
     using FileConverter.Controls;
     using FileConverter.Services;
 
     public partial class ConversionJob_FFMPEG : ConversionJob
     {
-        private readonly Regex durationRegex = new Regex(@"Duration:\s*([0-9][0-9]):([0-9][0-9]):([0-9][0-9])\.([0-9][0-9]),.*bitrate:\s*([0-9]+) kb\/s");
-        private readonly Regex progressRegex = new Regex(@"size=\s*([0-9]+).*time=([0-9][0-9]):([0-9][0-9]):([0-9][0-9]).([0-9][0-9])\s+bitrate=\s*([0-9]+.[0-9])");
+        private static readonly Regex DurationRegex = new Regex(@"Duration:\s*([0-9][0-9]):([0-9][0-9]):([0-9][0-9])\.([0-9][0-9]),.*bitrate:\s*([0-9]+) kb\/s", RegexOptions.CultureInvariant);
+        private static readonly Regex ProgressRegex = new Regex(@"size=\s*([0-9]+).*time=([0-9][0-9]):([0-9][0-9]):([0-9][0-9]).([0-9][0-9])\s+bitrate=\s*([0-9]+.[0-9])", RegexOptions.CultureInvariant);
 
         private TimeSpan fileDuration;
-        private TimeSpan actualConvertedDuration;
+        private readonly object processSync = new object();
+        private Process activeProcess;
 
         private ProcessStartInfo ffmpegProcessStartInfo;
 
         private readonly List<FFMpegPass> ffmpegArgumentStringByPass = new List<FFMpegPass>();
 
-        ISettingsService settingsService = Ioc.Default.GetRequiredService<ISettingsService>();
+        private readonly ISettingsService settingsService = Ioc.Default.GetRequiredService<ISettingsService>();
 
         public ConversionJob_FFMPEG() : base()
         {
@@ -56,30 +58,45 @@ namespace FileConverter.ConversionJobs
             }
         }
 
+        public override void Cancel()
+        {
+            base.Cancel();
+
+            if (this.CancelIsRequested)
+            {
+                lock (this.processSync)
+                {
+                    this.StopActiveProcess();
+                }
+            }
+        }
+
         protected override void Initialize()
         {
             base.Initialize();
 
             if (this.ConversionPreset == null)
             {
-                throw new Exception("The conversion preset must be valid.");
+                throw new Exception("转换预设无效。");
             }
 
             this.ffmpegProcessStartInfo = null;
+            this.ffmpegArgumentStringByPass.Clear();
+            this.fileDuration = TimeSpan.Zero;
 
             string ffmpegPath = this.FfmpegPath;
             if (!System.IO.File.Exists(ffmpegPath))
             {
                 this.ConversionFailed(Properties.Resources.ErrorCantFindFFMPEG);
-                Diagnostics.Debug.Log($"Can't find ffmpeg executable ({ffmpegPath}). Try to reinstall the application.");
+                Diagnostics.Debug.Log($"找不到 FFmpeg 可执行文件（{ffmpegPath}），请尝试重新安装程序。");
                 return;
             }
 
             this.ffmpegProcessStartInfo = new ProcessStartInfo(ffmpegPath)
             {
-                CreateNoWindow = true, 
-                UseShellExecute = false, 
-                RedirectStandardOutput = true, 
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
 
@@ -93,7 +110,7 @@ namespace FileConverter.ConversionJobs
             bool customCommandEnabled = this.ConversionPreset.GetSettingsValue<bool>(ConversionPreset.ConversionSettingKeys.EnableFFMPEGCustomCommand);
             if (customCommandEnabled)
             {
-                // Custom command override other settings.
+                // 自定义命令优先于其他转换设置。
                 string customCommand = this.ConversionPreset.GetSettingsValue<string>(ConversionPreset.ConversionSettingKeys.FFMPEGCustomCommand) ?? string.Empty;
 
                 string arguments = $"{baseArgs} -i \"{this.InputFilePath}\" {customCommand} \"{this.OutputFilePath}\"";
@@ -102,10 +119,10 @@ namespace FileConverter.ConversionJobs
                 return;
             }
 
-            // This option are necessary to be able to read metadata on Windows. src: http://jonhall.info/how_to/create_id3_tags_using_ffmpeg
+            // 在 Windows 上读取元数据需要此选项，来源： http://jonhall.info/how_to/create_id3_tags_using_ffmpeg
             const string MP3MetadataArgs = "-id3v2_version 3 -write_id3v1 1";
 
-            // AAC have no standard tag system, use ApeV2 (that are compatible). src: http://eolindel.free.fr/foobar/tags.shtml
+            // AAC 没有标准标签格式，使用兼容的 ApeV2，来源： http://eolindel.free.fr/foobar/tags.shtml
             const string AACMetadataArgs = "-write_apetag 1";
 
             switch (this.ConversionPreset.OutputType)
@@ -139,7 +156,7 @@ namespace FileConverter.ConversionJobs
                             audioArgs = $"-c:a libmp3lame -qscale:a {this.MP3VBRBitrateToQualityIndex(audioEncodingBitrate)}";
                         }
 
-                        // Compute final arguments.
+                        // 汇总最终参数。
                         string videoFilteringArgs = ConversionJob_FFMPEG.Encapsulate("-vf", transformArgs);
                         string encoderArgs = $"-c:v mpeg4 -vtag xvid -qscale:v {this.MPEG4QualityToQualityIndex(videoEncodingQuality)} {audioArgs} {videoFilteringArgs} {MP3MetadataArgs}";
                         string arguments = $"{baseArgs} -i \"{this.InputFilePath}\" {encoderArgs} \"{this.OutputFilePath}\"";
@@ -171,7 +188,7 @@ namespace FileConverter.ConversionJobs
 
                         string transformArgs = ConversionJob_FFMPEG.ComputeTransformArgs(this.ConversionPreset);
 
-                        // fps.
+                        // 帧率。
                         int framesPerSecond = this.ConversionPreset.GetSettingsValue<int>(ConversionPreset.ConversionSettingKeys.VideoFramesPerSecond);
                         if (!string.IsNullOrEmpty(transformArgs))
                         {
@@ -180,12 +197,12 @@ namespace FileConverter.ConversionJobs
 
                         transformArgs += $"fps={framesPerSecond}";
 
-                        // Generate palette.
+                        // 生成调色板。
                         string encoderArgs = $"-vf \"{transformArgs},palettegen\"";
                         string arguments = $"{baseArgs} -i \"{this.InputFilePath}\" {encoderArgs} \"{paletteFilePath}\"";
                         this.ffmpegArgumentStringByPass.Add(new FFMpegPass("Indexing colors", arguments, paletteFilePath));
 
-                        // Create gif.
+                        // 生成 GIF。
                         encoderArgs = $"-i \"{paletteFilePath}\" -lavfi \"{transformArgs},paletteuse\"";
                         arguments = $"{baseArgs} -i \"{this.InputFilePath}\" {encoderArgs} \"{this.OutputFilePath}\"";
                         this.ffmpegArgumentStringByPass.Add(new FFMpegPass(arguments));
@@ -380,7 +397,7 @@ namespace FileConverter.ConversionJobs
                         string encodingArgs = string.Empty;
                         if (videoEncodingQuality == 63)
                         {
-                            // Replace maximum quality settings by lossless compression.
+                            // 最高质量设置使用无损压缩。
                             encodingArgs = $"-lossless 1";
                         }
                         else
@@ -407,63 +424,87 @@ namespace FileConverter.ConversionJobs
                     break;
 
                 default:
-                    throw new NotImplementedException("Converter not implemented for output file type " +
+                    throw new NotImplementedException("尚未实现此输出类型的转换器：" +
                                                       this.ConversionPreset.OutputType);
             }
 
             if (this.ffmpegArgumentStringByPass.Count == 0)
             {
-                throw new Exception("No ffmpeg arguments generated.");
+                throw new Exception("未生成 FFmpeg 参数。");
             }
 
             for (int index = 0; index < this.ffmpegArgumentStringByPass.Count; index++)
             {
                 if (string.IsNullOrEmpty(this.ffmpegArgumentStringByPass[index].Arguments))
                 {
-                    throw new Exception("Invalid ffmpeg process arguments.");
+                    throw new Exception("FFmpeg 进程参数无效。");
                 }
             }
         }
-        
+
         protected override void Convert()
         {
             if (this.ConversionPreset == null)
             {
-                throw new Exception("The conversion preset must be valid.");
+                throw new Exception("转换预设无效。");
             }
 
             for (int index = 0; index < this.ffmpegArgumentStringByPass.Count; index++)
             {
+                if (this.CancelIsRequested || this.State == ConversionState.Failed)
+                {
+                    return;
+                }
+
                 FFMpegPass currentPass = this.ffmpegArgumentStringByPass[index];
 
                 this.UserState = currentPass.Name;
                 this.ffmpegProcessStartInfo.Arguments = currentPass.Arguments;
 
-                Diagnostics.Debug.Log($"Execute command: {this.ffmpegProcessStartInfo.FileName} {this.ffmpegProcessStartInfo.Arguments}.");
+                Diagnostics.Debug.Log($"执行命令：{this.ffmpegProcessStartInfo.FileName} {this.ffmpegProcessStartInfo.Arguments}。");
                 Diagnostics.Debug.Log(string.Empty);
 
                 try
                 {
                     using (Process exeProcess = Process.Start(this.ffmpegProcessStartInfo))
                     {
-                        using (StreamReader reader = exeProcess.StandardError)
+                        lock (this.processSync)
                         {
-                            while (!reader.EndOfStream)
+                            this.activeProcess = exeProcess;
+                            if (this.CancelIsRequested)
                             {
-                                if (this.CancelIsRequested && !exeProcess.HasExited)
-                                {
-                                    exeProcess.Kill();
-                                }
-
-                                string result = reader.ReadLine();
-
-                                this.ParseFFMPEGOutput(result);
-
-                                Diagnostics.Debug.Log($"ffmpeg output: {result}");
+                                this.StopActiveProcess();
                             }
                         }
 
-                        exeProcess.WaitForExit();
+                        try
+                        {
+                            // 同时排空两个输出管道，防止进度输出填满管道后阻塞编码器。
+                            Task drainOutput = exeProcess.StandardOutput.BaseStream.CopyToAsync(Stream.Null, 4096);
+                            string result;
+                            while ((result = exeProcess.StandardError.ReadLine()) != null)
+                            {
+                                this.ParseFFMPEGOutput(result);
+                                Diagnostics.Debug.Log($"FFmpeg 输出：{result}");
+                            }
+
+                            exeProcess.WaitForExit();
+                            drainOutput.GetAwaiter().GetResult();
+
+                            if (exeProcess.ExitCode != 0)
+                            {
+                                this.ConversionFailed(Properties.Resources.ErrorFailedToLaunchFFMPEG);
+                                return;
+                            }
+                        }
+                        finally
+                        {
+                            lock (this.processSync)
+                            {
+                                this.StopActiveProcess();
+                                this.activeProcess = null;
+                            }
+                        }
                     }
                 }
                 catch
@@ -474,8 +515,10 @@ namespace FileConverter.ConversionJobs
             }
 
             Diagnostics.Debug.Log(string.Empty);
+        }
 
-            // Clean intermediate files.
+        protected override void ReleaseResources()
+        {
             for (int index = 0; index < this.ffmpegArgumentStringByPass.Count; index++)
             {
                 FFMpegPass currentPass = this.ffmpegArgumentStringByPass[index];
@@ -485,54 +528,81 @@ namespace FileConverter.ConversionJobs
                     continue;
                 }
 
-                Diagnostics.Debug.Log($"Delete intermediate file {currentPass.FileToDelete}.");
+                Diagnostics.Debug.Log($"删除临时中间文件：{currentPass.FileToDelete}。");
 
-                File.Delete(currentPass.FileToDelete);
+                DeleteIntermediateFile(currentPass.FileToDelete);
+            }
+        }
+
+        private void StopActiveProcess()
+        {
+            if (this.activeProcess == null)
+            {
+                return;
+            }
+
+            try
+            {
+                if (!this.activeProcess.HasExited)
+                {
+                    this.activeProcess.Kill();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // 进程可能已经在取消请求到达前退出。
+            }
+            catch (System.ComponentModel.Win32Exception exception)
+            {
+                Diagnostics.Debug.Log($"无法停止 FFmpeg 进程：{exception}。");
             }
         }
 
         private void ParseFFMPEGOutput(string input)
         {
-            Match match = this.durationRegex.Match(input);
+            Match match = input.IndexOf("Duration:", StringComparison.Ordinal) >= 0 ? DurationRegex.Match(input) : Match.Empty;
             if (match.Success && match.Groups.Count >= 6)
             {
-                int hours = int.Parse(match.Groups[1].Value);
-                int minutes = int.Parse(match.Groups[2].Value);
-                int seconds = int.Parse(match.Groups[3].Value);
-                int milliseconds = int.Parse(match.Groups[4].Value) * 10;
-                float bitrate = float.Parse(match.Groups[5].Value);
+                int hours = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+                int minutes = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+                int seconds = int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
+                int milliseconds = int.Parse(match.Groups[4].Value, CultureInfo.InvariantCulture) * 10;
                 this.fileDuration = new TimeSpan(0, hours, minutes, seconds, milliseconds);
                 return;
             }
 
-            if (this.fileDuration.Ticks > 0)
+            if (this.fileDuration.Ticks > 0 && input.IndexOf("time=", StringComparison.Ordinal) >= 0)
             {
-                match = this.progressRegex.Match(input);
+                match = ProgressRegex.Match(input);
                 if (match.Success && match.Groups.Count >= 7)
                 {
-                    int size = int.Parse(match.Groups[1].Value);
-                    int hours = int.Parse(match.Groups[2].Value);
-                    int minutes = int.Parse(match.Groups[3].Value);
-                    int seconds = int.Parse(match.Groups[4].Value);
-                    int milliseconds = int.Parse(match.Groups[5].Value) * 10;
-                    float bitrate = 0f;
-                    float.TryParse(match.Groups[6].Value, out bitrate);
+                    int hours = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+                    int minutes = int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
+                    int seconds = int.Parse(match.Groups[4].Value, CultureInfo.InvariantCulture);
+                    int milliseconds = int.Parse(match.Groups[5].Value, CultureInfo.InvariantCulture) * 10;
+                    TimeSpan actualConvertedDuration = new TimeSpan(0, hours, minutes, seconds, milliseconds);
 
-                    this.actualConvertedDuration = new TimeSpan(0, hours, minutes, seconds, milliseconds);
-
-                    this.Progress = this.actualConvertedDuration.Ticks / (float)this.fileDuration.Ticks;
+                    this.Progress = actualConvertedDuration.Ticks / (float)this.fileDuration.Ticks;
                     return;
                 }
             }
 
-            // Remove file names from log to avoid false negative when some words like 'Error' are in file name (github issue #247).
+            if (input.IndexOf("Exiting.", StringComparison.Ordinal) < 0 &&
+                input.IndexOf("Error", StringComparison.Ordinal) < 0 &&
+                input.IndexOf("Unsupported dimensions", StringComparison.Ordinal) < 0 &&
+                input.IndexOf("No such file or directory", StringComparison.Ordinal) < 0)
+            {
+                return;
+            }
+
+            // 仅对疑似错误的日志移除文件名，避免正常日志产生多余字符串。
             string inputWithoutFileNames = input.Replace(this.InputFilePath, string.Empty).Replace(this.OutputFilePath, string.Empty);
 
             if (inputWithoutFileNames.Contains("Exiting.") || inputWithoutFileNames.Contains("Error") || inputWithoutFileNames.Contains("Unsupported dimensions") || inputWithoutFileNames.Contains("No such file or directory"))
             {
                 if (inputWithoutFileNames.StartsWith("Error while decoding stream") && inputWithoutFileNames.EndsWith("Invalid data found when processing input"))
                 {
-                    // It is normal for a transport stream to start with a broken frame.
+                    // 传输流开头出现损坏帧属于正常情况。
                     // https://trac.ffmpeg.org/ticket/1622
                 }
                 else

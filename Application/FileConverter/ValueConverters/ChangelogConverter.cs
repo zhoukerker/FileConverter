@@ -21,7 +21,7 @@ namespace FileConverter.ValueConverters
                         {
                             if (!bool.TryParse(s, out header))
                             {
-                                Debug.LogError($"Invalid parameter {s}");
+                                Debug.LogError($"参数无效：{s}");
                             }
 
                             break;
@@ -32,7 +32,7 @@ namespace FileConverter.ValueConverters
                         break;
 
                     default:
-                        Debug.LogError($"Invalid parameter {parameter}");
+                        Debug.LogError($"参数无效：{parameter}");
                         break;
                 }
             }

@@ -60,10 +60,7 @@ namespace FileConverter
 
         public static bool IsInAdmininstratorPrivileges
         {
-            get
-            {
-                return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
-            }
+            get => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
         }
 
         public void CancelAutoExit()
@@ -85,14 +82,14 @@ namespace FileConverter
         {
             base.OnStartup(e);
 
-            // Redirect standard output to the parent process in case the application is launch from command line.
+            // 从命令行启动时，将标准输出连接到父进程的控制台。
             AttachConsole(ATTACH_PARENT_PROCESS);
-            
+
             this.RegisterServices();
 
             this.Initialize();
 
-            // Navigate to the wanted view.
+            // 显示启动参数指定的页面。
             INavigationService navigationService = Ioc.Default.GetRequiredService<INavigationService>();
 
             if (this.showHelp)
@@ -125,45 +122,49 @@ namespace FileConverter
         {
             base.OnExit(e);
 
-            Debug.Log("Exit application.");
+            Debug.Log("退出应用程序。");
 
             IUpgradeService upgradeService = Ioc.Default.GetRequiredService<IUpgradeService>();
 
             if (!this.isSessionEnding && upgradeService.UpgradeVersionDescription != null && upgradeService.UpgradeVersionDescription.NeedToUpgrade)
             {
-                Debug.Log($"A new version of file converter has been found: {upgradeService.UpgradeVersionDescription.LatestVersion}.");
+                Debug.Log($"发现文件转换器新版本：{upgradeService.UpgradeVersionDescription.LatestVersion}。");
 
                 if (string.IsNullOrEmpty(upgradeService.UpgradeVersionDescription.InstallerPath))
                 {
-                    Debug.LogError("Invalid installer path.");
+                    Debug.LogError("安装程序路径无效。");
                 }
                 else
                 {
-                    Debug.Log("Wait for the end of the installer download.");
-                    while (upgradeService.UpgradeVersionDescription.InstallerDownloadInProgress)
+                    Debug.Log("等待安装程序下载完成。");
+                    while (upgradeService.UpgradeVersionDescription.InstallerDownloadInProgress && upgradeService.UpgradeVersionDescription.NeedToUpgrade)
                     {
                         Thread.Sleep(1000);
                     }
 
                     string installerPath = upgradeService.UpgradeVersionDescription.InstallerPath;
-                    if (!System.IO.File.Exists(installerPath))
+                    if (!upgradeService.UpgradeVersionDescription.NeedToUpgrade)
                     {
-                        Debug.LogError($"Can't find upgrade installer ({installerPath}). Try to restart the application.");
-                        return;
+                        Debug.Log("已取消更新。");
                     }
-
-                    // Start process.
-                    Debug.Log($"Start file converter upgrade from version {ApplicationVersion} to {upgradeService.UpgradeVersionDescription.LatestVersion}.");
-
-                    ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo(installerPath) { UseShellExecute = true, };
-
-                    Debug.Log($"Start upgrade process: {System.IO.Path.GetFileName(startInfo.FileName)}{startInfo.Arguments}.");
-                    Process process = new System.Diagnostics.Process { StartInfo = startInfo };
-
-                    process.Start();
+                    else if (!System.IO.File.Exists(installerPath))
+                    {
+                        Debug.LogError($"找不到更新安装程序（{installerPath}），请尝试重新启动应用程序。");
+                    }
+                    else
+                    {
+                        Debug.Log($"开始将文件转换器从 {ApplicationVersion} 更新到 {upgradeService.UpgradeVersionDescription.LatestVersion}。");
+                        ProcessStartInfo startInfo = new ProcessStartInfo(installerPath) { UseShellExecute = true };
+                        Debug.Log($"启动更新进程：{System.IO.Path.GetFileName(startInfo.FileName)}{startInfo.Arguments}。");
+                        using (Process process = new Process { StartInfo = startInfo })
+                        {
+                            process.Start();
+                        }
+                    }
                 }
             }
 
+            (upgradeService as IDisposable)?.Dispose();
             Debug.Release();
         }
 
@@ -185,7 +186,7 @@ namespace FileConverter
             }
             else
             {
-                Debug.LogError("Can't retrieve view model locator.");
+                Debug.LogError("无法获取视图模型定位器。");
                 Application.AskForShutdown();
             }
 
@@ -195,7 +196,7 @@ namespace FileConverter
             }
             else
             {
-                Debug.LogError("Can't retrieve Upgrade service.");
+                Debug.LogError("无法获取更新服务。");
                 Application.AskForShutdown();
             }
 
@@ -218,32 +219,32 @@ namespace FileConverter
         private void Initialize()
         {
 #if BUILD32
-            Diagnostics.Debug.Log("File Converter v" + ApplicationVersion.ToString() + " (32 bits)");
+            Diagnostics.Debug.Log("File Converter v" + ApplicationVersion.ToString() + "（32 位）");
 #else
-            Diagnostics.Debug.Log("File Converter v" + ApplicationVersion.ToString() + " (64 bits)");
+            Diagnostics.Debug.Log("File Converter v" + ApplicationVersion.ToString() + "（64 位）");
 #endif
 
-            // Retrieve arguments.
-            Debug.Log("Retrieve arguments...");
+            // 读取命令行参数。
+            Debug.Log("读取命令行参数…");
             string[] args = Environment.GetCommandLineArgs();
 
-            // Log arguments.
+            // 记录命令行参数。
             for (int index = 0; index < args.Length; index++)
             {
                 string argument = args[index];
-                Debug.Log($"Arg{index}: {argument}");
+                Debug.Log($"参数 {index}：{argument}");
             }
 
             Debug.Log(string.Empty);
 
             if (args.Length == 1)
             {
-                // Display help windows to explain that this application is a context menu extension.
+                // 未指定参数时显示帮助，说明如何使用右键菜单扩展。
                 this.showHelp = true;
                 return;
             }
 
-            // Parse arguments.
+            // 解析命令行参数。
             List<string> filePaths = new List<string>();
             string conversionPresetName = null;
             for (int index = 1; index < args.Length; index++)
@@ -256,7 +257,7 @@ namespace FileConverter
 
                 if (argument.StartsWith("--"))
                 {
-                    // This is an optional parameter.
+                    // 双连字符开头的内容为可选参数。
                     string parameterTitle = argument.Substring(2).ToLowerInvariant();
 
                     switch (parameterTitle)
@@ -265,7 +266,7 @@ namespace FileConverter
                             ISettingsService settingsService = Ioc.Default.GetRequiredService<ISettingsService>();
                             if (!settingsService.PostInstallationInitialization())
                             {
-                                Debug.LogError(errorCode: 0x0F, $"Failed to execute post install initialization.");
+                                Debug.LogError(errorCode: 0x0F, $"安装后初始化失败。");
                             }
 
                             Application.AskForShutdown();
@@ -275,7 +276,7 @@ namespace FileConverter
                             {
                                 if (index >= args.Length - 1)
                                 {
-                                    Debug.LogError(errorCode: 0x0B, $"Invalid format.");
+                                    Debug.LogError(errorCode: 0x0B, $"--register-shell-extension 后必须指定扩展程序集路径。");
                                     break;
                                 }
 
@@ -284,7 +285,7 @@ namespace FileConverter
 
                                 if (!Helpers.RegisterShellExtension(shellExtensionPath))
                                 {
-                                    Debug.LogError(errorCode: 0x0C, $"Failed to register shell extension {shellExtensionPath}.");
+                                    Debug.LogError(errorCode: 0x0C, $"注册右键菜单扩展失败：{shellExtensionPath}。");
                                 }
 
                                 Application.AskForShutdown();
@@ -295,7 +296,7 @@ namespace FileConverter
                             {
                                 if (index >= args.Length - 1)
                                 {
-                                    Debug.LogError(errorCode: 0x0D, $"Invalid format.");
+                                    Debug.LogError(errorCode: 0x0D, $"--unregister-shell-extension 后必须指定扩展程序集路径。");
                                     break;
                                 }
 
@@ -304,7 +305,7 @@ namespace FileConverter
 
                                 if (!Helpers.UnregisterExtension(shellExtensionPath))
                                 {
-                                    Debug.LogError(errorCode: 0x0E, $"Failed to unregister shell extension {shellExtensionPath}.");
+                                    Debug.LogError(errorCode: 0x0E, $"注销右键菜单扩展失败：{shellExtensionPath}。");
                                 }
 
                                 Application.AskForShutdown();
@@ -323,7 +324,7 @@ namespace FileConverter
                         case "conversion-preset":
                             if (index >= args.Length - 1)
                             {
-                                Debug.LogError(errorCode: 0x01, $"Invalid format.");
+                                Debug.LogError(errorCode: 0x01, $"--conversion-preset 后必须指定转换预设名称。");
                                 Application.AskForShutdown();
                                 return;
                             }
@@ -335,7 +336,7 @@ namespace FileConverter
                         case "input-files":
                             if (index >= args.Length - 1)
                             {
-                                Debug.LogError(errorCode: 0x02, $"Invalid format.");
+                                Debug.LogError(errorCode: 0x02, $"--input-files 后必须指定输入文件清单路径。");
                                 Application.AskForShutdown();
                                 return;
                             }
@@ -354,7 +355,7 @@ namespace FileConverter
                             }
                             catch (Exception exception)
                             {
-                                Debug.LogError(errorCode: 0x03, $"Can't read input files list: {exception}");
+                                Debug.LogError(errorCode: 0x03, $"无法读取输入文件清单：{exception}");
                                 Application.AskForShutdown();
                                 return;
                             }
@@ -370,7 +371,7 @@ namespace FileConverter
                             break;
 
                         default:
-                            Debug.LogError($"Unknown application argument: '--{parameterTitle}'.");
+                            Debug.LogError($"未知应用程序参数：'--{parameterTitle}'。");
                             return;
                     }
                 }
@@ -388,14 +389,14 @@ namespace FileConverter
             ISettingsService settingsService = Ioc.Default.GetRequiredService<ISettingsService>();
             if (settingsService.Settings == null)
             {
-                Debug.LogError(errorCode: 0x04, "Can't load File Converter settings. The application will now shutdown, if you want to fix the problem yourself please edit or delete the file: C:\\Users\\UserName\\AppData\\Local\\FileConverter\\Settings.user.xml.");
+                Debug.LogError(errorCode: 0x04, "无法加载文件转换器配置，应用程序即将退出。请编辑或删除当前用户目录下的 AppData\\Local\\FileConverter\\Settings.user.xml 后重试。");
                 Application.AskForShutdown();
                 return;
             }
 
-            Debug.Assert(Debug.FirstErrorCode == 0, "An error happened during the initialization.");
+            Debug.Assert(Debug.FirstErrorCode == 0, "初始化过程中发生错误。");
 
-            // Check for upgrade.
+            // 检查应用程序更新。
             if (settingsService.Settings.CheckUpgradeAtStartup)
             {
                 IUpgradeService upgradeService = Ioc.Default.GetRequiredService<IUpgradeService>();
@@ -409,7 +410,7 @@ namespace FileConverter
                 conversionPreset = settingsService.Settings.GetPresetFromName(conversionPresetName);
                 if (conversionPreset == null)
                 {
-                    Debug.LogError(errorCode: 0x02, $"Invalid conversion preset '{conversionPresetName}'.");
+                    Debug.LogError(errorCode: 0x02, $"转换预设无效：'{conversionPresetName}'。");
                     Application.AskForShutdown();
                     return;
                 }
@@ -419,8 +420,8 @@ namespace FileConverter
             {
                 IConversionService conversionService = Ioc.Default.GetRequiredService<IConversionService>();
 
-                // Create conversion jobs.
-                Debug.Log($"Create jobs for conversion preset: '{conversionPreset.FullName}'");
+                // 为所选文件创建转换任务。
+                Debug.Log($"按转换预设创建任务：'{conversionPreset.FullName}'");
                 try
                 {
                     for (int index = 0; index < filePaths.Count; index++)
@@ -433,7 +434,7 @@ namespace FileConverter
                 }
                 catch (Exception exception)
                 {
-                    Debug.LogError(exception.Message);
+                    Debug.LogError($"创建转换任务失败：{exception.Message}");
                     throw;
                 }
 
@@ -460,7 +461,7 @@ namespace FileConverter
             {
                 return;
             }
-            
+
             if (this.cancelAutoExit)
             {
                 return;

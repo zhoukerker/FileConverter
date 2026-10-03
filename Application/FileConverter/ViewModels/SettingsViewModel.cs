@@ -1,4 +1,4 @@
-// <copyright file="SettingsViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="SettingsViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverter.ViewModels
 {
@@ -7,13 +7,12 @@ namespace FileConverter.ViewModels
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.Diagnostics;
-    using System.Globalization;
     using System.Linq;
     using System.Windows.Data;
     using System.Windows.Input;
 
     using Microsoft.Win32;
-    
+
     using CommunityToolkit.Mvvm.ComponentModel;
     using CommunityToolkit.Mvvm.DependencyInjection;
     using CommunityToolkit.Mvvm.Input;
@@ -23,7 +22,7 @@ namespace FileConverter.ViewModels
     using FileConverter.Views;
 
     /// <summary>
-    /// This class contains properties that the settings View can data bind to.
+    /// 提供设置视图的数据绑定属性。
     /// </summary>
     public class SettingsViewModel : ObservableRecipient, IDataErrorInfo
     {
@@ -46,14 +45,13 @@ namespace FileConverter.ViewModels
         private RelayCommand<CancelEventArgs> closeCommand;
 
         private ListCollectionView outputTypes;
-        private CultureInfo[] supportedCultures;
         private Helpers.HardwareAccelerationMode[] hardwareAccelerationModes = { Helpers.HardwareAccelerationMode.Off, Helpers.HardwareAccelerationMode.CUDA, Helpers.HardwareAccelerationMode.AMF };
 
         public event Action OnPresetCreated;
         public event Action OnFolderCreated;
 
         /// <summary>
-        /// Initializes a new instance of the SettingsViewModel class.
+        /// 初始化设置视图模型。
         /// </summary>
         public SettingsViewModel()
         {
@@ -91,8 +89,6 @@ namespace FileConverter.ViewModels
             this.outputTypes = new ListCollectionView(outputTypeViewModels);
             this.outputTypes.GroupDescriptions.Add(new PropertyGroupDescription("Category"));
 
-            this.SupportedCultures = Helpers.GetSupportedCultures().ToArray();
-
             this.InitializeCompatibleInputExtensions();
             this.InitializePresetFolders();
         }
@@ -116,7 +112,7 @@ namespace FileConverter.ViewModels
                 }
             }
         }
-        
+
         public InputPostConversionAction[] InputPostConversionActions => new[]
                                                                              {
                                                                                  InputPostConversionAction.None,
@@ -223,16 +219,6 @@ namespace FileConverter.ViewModels
             }
         }
 
-        public CultureInfo[] SupportedCultures
-        {
-            get => this.supportedCultures;
-            set
-            {
-                this.supportedCultures = value;
-                this.OnPropertyChanged();
-            }
-        }
-
         public Helpers.HardwareAccelerationMode[] HardwareAccelerationModes
         {
             get => this.hardwareAccelerationModes;
@@ -252,13 +238,10 @@ namespace FileConverter.ViewModels
                 this.OnPropertyChanged();
             }
         }
-        
+
         public bool DisplaySeeChangeLogLink
         {
-            get
-            {
-                return this.displaySeeChangeLogLink;
-            }
+            get => this.displaySeeChangeLogLink;
 
             private set
             {
@@ -267,7 +250,7 @@ namespace FileConverter.ViewModels
                 this.OnPropertyChanged();
             }
         }
-        
+
         public ICommand GetChangeLogContentCommand => this.getChangeLogContentCommand;
 
         public ICommand OpenUrlCommand => this.openUrlCommand;
@@ -296,7 +279,7 @@ namespace FileConverter.ViewModels
                 }
 
                 PresetFolderNode parentFolder = nodeA as PresetFolderNode;
-                Diagnostics.Debug.Assert(parentFolder != null, "Node should be a preset folder.");
+                Diagnostics.Debug.Assert(parentFolder != null, "节点必须是预设文件夹。");
 
                 return parentFolder.IsNodeInHierarchy(nodeB as AbstractTreeNode, true);
             };
@@ -473,11 +456,11 @@ namespace FileConverter.ViewModels
 
         private void SaveSettings()
         {
-            // Compute parent folder names.
+            // 计算父文件夹名称。
             this.settings.ConversionPresets.Clear();
             this.ComputePresetsParentFoldersNamesAndFillSettings(this.presetsRootFolder, new List<string>());
-            
-            // Save changes.
+
+            // 保存修改。
             ISettingsService settingsService = Ioc.Default.GetRequiredService<ISettingsService>();
             settingsService.SaveSettings();
 
@@ -507,7 +490,7 @@ namespace FileConverter.ViewModels
                 insertIndex = parent.Children.Count;
             }
 
-            // Generate a unique folder name.
+            // 生成不重复的文件夹名称。
             string folderName = Properties.Resources.DefaultFolderName;
             int index = 1;
             while (parent.Children.Any(match => match is PresetFolderNode folder && folder.Name == folderName))
@@ -556,7 +539,7 @@ namespace FileConverter.ViewModels
                 insertIndex = parent.Children.Count;
             }
 
-            // Generate a unique preset name.
+            // 生成不重复的预设名称。
             string presetName = Properties.Resources.DefaultPresetName;
             int index = 1;
             while (parent.Children.Any(match => match is PresetNode folder && folder.Preset.ShortName == presetName))
@@ -565,7 +548,7 @@ namespace FileConverter.ViewModels
                 presetName = $"{Properties.Resources.DefaultPresetName} ({index})";
             }
 
-            // Create preset by copying the selected one.
+            // 复制所选预设以创建新预设。
             ConversionPreset newPreset = null;
             if (this.SelectedPreset != null && duplicate)
             {
@@ -594,8 +577,8 @@ namespace FileConverter.ViewModels
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Title = "Import presets",
-                Filter = "Preset file (*.xml)|*.xml",
+                Title = "导入预设",
+                Filter = "预设文件 (*.xml)|*.xml",
                 InitialDirectory = this.ImportDirectoryPath,
             };
 
@@ -603,7 +586,7 @@ namespace FileConverter.ViewModels
             {
                 if (!File.Exists(openFileDialog.FileName))
                 {
-                    Diagnostics.Debug.LogError("File does not exists.");
+                    Diagnostics.Debug.LogError("文件不存在。");
                 }
 
                 string directoryPath = Path.GetDirectoryName(openFileDialog.FileName);
@@ -615,7 +598,7 @@ namespace FileConverter.ViewModels
                 List<ConversionPreset> presetsToImport = new List<ConversionPreset>();
                 XmlHelpers.LoadFromFile("Presets", openFileDialog.FileName, out presetsToImport);
 
-                // Add imported preset to preset tree.
+                // 将导入的预设加入预设树。
                 bool itemSelected = false;
                 foreach (ConversionPreset conversionPreset in presetsToImport)
                 {
@@ -651,8 +634,8 @@ namespace FileConverter.ViewModels
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
-                Title = "Export selected preset or folder",
-                Filter = "Preset file (*.xml)|*.xml",
+                Title = "导出所选预设或文件夹",
+                Filter = "预设文件 (*.xml)|*.xml",
                 InitialDirectory = this.ImportDirectoryPath,
             };
 

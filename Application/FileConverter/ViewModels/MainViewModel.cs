@@ -1,10 +1,14 @@
-// <copyright file="MainViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="MainViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverter.ViewModels
 {
+    using System;
     using System.Collections.ObjectModel;
     using System.ComponentModel;
+    using System.Threading;
+    using System.Windows;
     using System.Windows.Input;
+    using System.Windows.Threading;
 
     using CommunityToolkit.Mvvm.ComponentModel;
     using CommunityToolkit.Mvvm.DependencyInjection;
@@ -13,28 +17,39 @@ namespace FileConverter.ViewModels
     using FileConverter.ConversionJobs;
     using FileConverter.Services;
 
+    using Application = FileConverter.Application;
+
     /// <summary>
-    /// This class contains properties that the main View can data bind to.
+    /// 提供主视图的数据绑定属性。
     /// </summary>
     public class MainViewModel : ObservableRecipient
     {
+        private static readonly PropertyChangedEventArgs ConversionJobsChangedEventArgs = new PropertyChangedEventArgs(nameof(ConversionJobs));
+        private readonly Dispatcher dispatcher;
+        private readonly Action notifyConversionJobsChanged;
         private string informationMessage;
-        private ObservableCollection<ConversionJob> conversionJobs;
+        private int conversionJobsUpdatePending;
 
         private RelayCommand showSettingsCommand;
         private RelayCommand showDiagnosticsCommand;
         private RelayCommand<CancelEventArgs> closeCommand;
 
         /// <summary>
-        /// Initializes a new instance of the MainViewModel class.
+        /// 初始化主视图模型。
         /// </summary>
         public MainViewModel()
         {
-            IConversionService settingsService = Ioc.Default.GetRequiredService<IConversionService>();
-            this.ConversionJobs = new ObservableCollection<ConversionJob>(settingsService.ConversionJobs);
+            IConversionService conversionService = Ioc.Default.GetRequiredService<IConversionService>();
+            this.ConversionJobs = new ObservableCollection<ConversionJob>(conversionService.ConversionJobs);
+            foreach (ConversionJob job in this.ConversionJobs)
+            {
+                PropertyChangedEventManager.AddHandler(job, this.ConversionJob_PropertyChanged, string.Empty);
+            }
 
             Application application = Application.Current as Application;
-            application.OnApplicationTerminate += this.Application_OnApplicationTerminate;
+            this.dispatcher = application.Dispatcher;
+            this.notifyConversionJobsChanged = this.NotifyConversionJobsChanged;
+            WeakEventManager<Application, ApplicationTerminateArgs>.AddHandler(application, nameof(Application.OnApplicationTerminate), this.Application_OnApplicationTerminate);
         }
 
         public string InformationMessage
@@ -47,20 +62,7 @@ namespace FileConverter.ViewModels
             }
         }
 
-        public ObservableCollection<ConversionJob> ConversionJobs
-        {
-            get => this.conversionJobs;
-
-            private set
-            {
-                this.SetProperty(ref this.conversionJobs, value);
-
-                foreach (var job in this.conversionJobs)
-                {
-                    job.PropertyChanged += this.ConversionJob_PropertyChanged;
-                }
-            }
-        }
+        public ObservableCollection<ConversionJob> ConversionJobs { get; }
 
         public ICommand ShowSettingsCommand
         {
@@ -109,36 +111,48 @@ namespace FileConverter.ViewModels
 
         private void ConversionJob_PropertyChanged(object sender, PropertyChangedEventArgs eventArgs)
         {
-            if (eventArgs.PropertyName != "State" && eventArgs.PropertyName != "Progress")
+            if (eventArgs.PropertyName != nameof(ConversionJob.State) && eventArgs.PropertyName != nameof(ConversionJob.Progress))
             {
                 return;
             }
 
-            this.OnPropertyChanged(nameof(this.ConversionJobs));
+            if (!this.dispatcher.HasShutdownStarted && Interlocked.Exchange(ref this.conversionJobsUpdatePending, 1) == 0)
+            {
+                // 合并后台线程的连续进度通知，避免重复扫描整个任务队列。
+                this.dispatcher.BeginInvoke(DispatcherPriority.Background, this.notifyConversionJobsChanged);
+            }
+        }
+
+        private void NotifyConversionJobsChanged()
+        {
+            Interlocked.Exchange(ref this.conversionJobsUpdatePending, 0);
+            this.OnPropertyChanged(ConversionJobsChangedEventArgs);
         }
 
         private void Application_OnApplicationTerminate(object sender, ApplicationTerminateArgs eventArgs)
         {
+            string message;
             if (float.IsNaN(eventArgs.RemainingTimeBeforeTermination))
             {
-                this.InformationMessage = string.Empty;
-                return;
+                message = string.Empty;
+            }
+            else
+            {
+                int remainingSeconds = (int)eventArgs.RemainingTimeBeforeTermination;
+                message = remainingSeconds >= 2
+                    ? string.Format(Properties.Resources.ApplicationWillTerminateInMultipleSeconds, remainingSeconds)
+                    : remainingSeconds == 1
+                        ? Properties.Resources.ApplicationWillTerminateInOneSecond
+                        : Properties.Resources.ApplicationIsTerminating;
             }
 
-            int remaingingSeconds = (int)eventArgs.RemainingTimeBeforeTermination;
-
-            if (remaingingSeconds >= 2)
+            if (this.dispatcher.CheckAccess())
             {
-                this.InformationMessage = string.Format(Properties.Resources.ApplicationWillTerminateInMultipleSeconds, remaingingSeconds);
+                this.InformationMessage = message;
             }
-            else if (remaingingSeconds == 1)
+            else if (!this.dispatcher.HasShutdownStarted)
             {
-                this.InformationMessage = Properties.Resources.ApplicationWillTerminateInOneSecond;
-            }
-
-            if (remaingingSeconds <= 0)
-            {
-                this.InformationMessage = Properties.Resources.ApplicationIsTerminating;
+                this.dispatcher.BeginInvoke((Action)(() => this.InformationMessage = message));
             }
         }
     }

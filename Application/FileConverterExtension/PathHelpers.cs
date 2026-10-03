@@ -2,8 +2,9 @@
 
 namespace FileConverterExtension
 {
-    using System.IO;
     using System;
+    using System.IO;
+
     using Microsoft.Win32;
 
     public static class PathHelpers
@@ -18,12 +19,9 @@ namespace FileConverterExtension
             get
             {
                 string pathToFileConverterExecutable = PathHelpers.FileConverterPath;
-                if (string.IsNullOrEmpty(pathToFileConverterExecutable))
-                {
-                    return null;
-                }
-
-                return Path.Combine(Path.GetDirectoryName(pathToFileConverterExecutable), "Settings.default.xml");
+                return string.IsNullOrEmpty(pathToFileConverterExecutable)
+                    ? null
+                    : Path.Combine(Path.GetDirectoryName(pathToFileConverterExecutable), "Settings.default.xml");
             }
         }
 
@@ -36,7 +34,7 @@ namespace FileConverterExtension
                     PathHelpers.fileConverterRegistryKey = Registry.CurrentUser.OpenSubKey(@"Software\FileConverter");
                     if (PathHelpers.fileConverterRegistryKey == null)
                     {
-                        throw new Exception("Can't retrieve file converter registry entry.");
+                        throw new Exception("无法读取文件转换器的注册表配置。");
                     }
                 }
 
@@ -64,11 +62,7 @@ namespace FileConverterExtension
                 string path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData);
                 path = Path.Combine(path, "FileConverter");
 
-                if (!Directory.Exists(path))
-                {
-                    Directory.CreateDirectory(path);
-                }
-
+                Directory.CreateDirectory(path);
                 return path;
             }
         }

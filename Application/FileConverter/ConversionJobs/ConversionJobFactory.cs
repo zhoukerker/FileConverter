@@ -10,7 +10,7 @@ namespace FileConverter.ConversionJobs
             inputFileExtension = inputFileExtension.ToLowerInvariant().Substring(1, inputFileExtension.Length - 1);
             if (inputFileExtension == "cda")
             {
-                return new ConversionJob_ExtractCDA(conversionPreset, inputFilePath);    
+                return new ConversionJob_ExtractCDA(conversionPreset, inputFilePath);
             }
 
             if (inputFileExtension == "docx" || inputFileExtension == "odt" || inputFileExtension == "doc")
@@ -50,7 +50,7 @@ namespace FileConverter.ConversionJobs
             {
                 return new ConversionJob_ImageMagick(conversionPreset, inputFilePath);
             }
-            
+
             return new ConversionJob_FFMPEG(conversionPreset, inputFilePath);
         }
     }

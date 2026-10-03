@@ -2,11 +2,11 @@
 
 namespace FileConverterExtension
 {
+    using System;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Drawing;
     using System.IO;
-    using System.Linq;
     using System.Runtime.InteropServices;
     using System.Text;
     using System.Windows.Forms;
@@ -15,7 +15,7 @@ namespace FileConverterExtension
     using SharpShell.SharpContextMenu;
 
     /// <summary>
-    /// File converter context menu extension class.
+    /// 文件转换器的资源管理器右键菜单扩展。
     /// </summary>
     [ComVisible(true), Guid("AF9B72B5-F4E4-44B0-A3D9-B55B748EFE90")]
     [COMServerAssociation(AssociationType.AllFiles)]
@@ -23,10 +23,11 @@ namespace FileConverterExtension
     {
         private const int MaximumProcessArgumentsLength = 8000; // https://learn.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/command-line-string-limitation
 
-        private PresetReference[] presetReferences = null;
-        private List<MenuEntry> menuEntries = new List<MenuEntry>();
-
-        private HashSet<string> extensionCache = new HashSet<string>();
+        private PresetReference[] presetReferences;
+        private readonly List<MenuEntry> menuEntries = new List<MenuEntry>();
+        private readonly Dictionary<string, MenuEntry> menuEntriesByName = new Dictionary<string, MenuEntry>(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<PresetReference>> presetsByExtension = new Dictionary<string, List<PresetReference>>(StringComparer.Ordinal);
+        private readonly HashSet<string> extensionCache = new HashSet<string>(StringComparer.Ordinal);
 
         private class MenuEntry
         {
@@ -37,37 +38,15 @@ namespace FileConverterExtension
             public MenuEntry(PresetReference presetReference)
             {
                 this.PresetReference = presetReference;
-                this.Enabled = false;
-                this.ExtensionRefCount = 0;
             }
         }
-        
+
         private bool DisplayPresetIcons
         {
             get
             {
                 string displayPresetIcons = PathHelpers.FileConverterRegistryKey.GetValue("DisplayPresetIcons") as string;
-                if (displayPresetIcons == null)
-                {
-                    return false;
-                }
-
-                if (!bool.TryParse(displayPresetIcons, out bool value))
-                {
-                    return false;
-                }
-
-                return value;
-            }
-        }
-
-        private PresetReference[] PresetReferences
-        {
-            get
-            {
-                this.LoadExtensionSettingsIfNecessary();
-
-                return this.presetReferences;
+                return bool.TryParse(displayPresetIcons, out bool value) && value;
             }
         }
 
@@ -75,15 +54,12 @@ namespace FileConverterExtension
         {
             this.RefreshExtensionCacheFromSelectedItems();
 
-            PresetReference[] presets = this.PresetReferences;
+            this.LoadExtensionSettingsIfNecessary();
             foreach (string extension in this.extensionCache)
             {
-                foreach (PresetReference presetReference in presets)
+                if (this.presetsByExtension.ContainsKey(extension))
                 {
-                    if (presetReference.InputTypes.Contains(extension))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
 
@@ -97,18 +73,29 @@ namespace FileConverterExtension
             bool displayPresetIcons = this.DisplayPresetIcons;
 
             ContextMenuStrip menu = new ContextMenuStrip();
+            List<Bitmap> menuImages = new List<Bitmap>(4);
+            menu.Disposed += (sender, args) =>
+            {
+                foreach (Bitmap image in menuImages)
+                {
+                    image.Dispose();
+                }
+            };
+
+            Bitmap folderImage = null;
+            Bitmap presetImage = null;
 
             ToolStripMenuItem fileConverterItem = new ToolStripMenuItem
             {
-                Text = "File Converter",
-                Image = new Icon(Properties.Resources.ApplicationIcon, SystemInformation.SmallIconSize).ToBitmap(),
+                Text = GetText("ApplicationMenuTitle"),
+                Image = CreateMenuImage(Properties.Resources.ApplicationIcon, menuImages),
             };
 
             int menuItemIndex = 0;
             foreach (MenuEntry menuEntry in this.menuEntries)
             {
                 menuItemIndex++;
-                
+
                 ToolStripMenuItem root = fileConverterItem;
                 if (menuEntry.PresetReference.Folders != null)
                 {
@@ -117,11 +104,16 @@ namespace FileConverterExtension
                         ToolStripItem[] folderItems = root.DropDownItems.Find(folder, false);
                         if (folderItems.Length == 0)
                         {
+                            if (folderImage == null)
+                            {
+                                folderImage = CreateMenuImage(Properties.Resources.FolderIcon, menuImages);
+                            }
+
                             ToolStripMenuItem folderItem = new ToolStripMenuItem
                             {
                                 Name = folder,
-                                Text = folder,
-                                Image = new Icon(Properties.Resources.FolderIcon, SystemInformation.SmallIconSize).ToBitmap(),
+                                Text = PresetDisplayNames.GetName(folder, menuEntry.PresetReference.IsDefaultSettings),
+                                Image = folderImage,
                             };
 
                             root.DropDownItems.Add(folderItem);
@@ -130,6 +122,11 @@ namespace FileConverterExtension
                         else
                         {
                             root = folderItems[0] as ToolStripMenuItem;
+                            if (root != null && !menuEntry.PresetReference.IsDefaultSettings)
+                            {
+                                // 混合自定义预设的目录保留用户原始名称。
+                                root.Text = folder;
+                            }
                         }
 
                         if (root == null)
@@ -141,14 +138,13 @@ namespace FileConverterExtension
 
                 if (root == null)
                 {
-                    // Fallback when something went wrong during folder creation.
+                    // 文件夹创建失败时将预设放回菜单根节点。
                     root = fileConverterItem;
                 }
 
-                // Make each menu item text unique using invisible zero-width spaces
-                // This prevents Windows Forms menu collision while being completely invisible to users
-                string uniqueSuffix = new string('\u200B', menuItemIndex); // Zero-Width Space characters
-                string displayText = menuEntry.PresetReference.Name + uniqueSuffix;
+                // 保留不可见的零宽空格，避免 Windows Forms 的同名菜单项冲突。
+                string uniqueSuffix = new string('\u200B', menuItemIndex);
+                string displayText = menuEntry.PresetReference.DisplayName + uniqueSuffix;
 
                 ToolStripMenuItem subItem = new ToolStripMenuItem
                 {
@@ -158,7 +154,12 @@ namespace FileConverterExtension
 
                 if (displayPresetIcons)
                 {
-                    subItem.Image = new Icon(Properties.Resources.PresetIcon, SystemInformation.SmallIconSize).ToBitmap();
+                    if (presetImage == null)
+                    {
+                        presetImage = CreateMenuImage(Properties.Resources.PresetIcon, menuImages);
+                    }
+
+                    subItem.Image = presetImage;
                 }
 
                 root.DropDownItems.Add(subItem);
@@ -173,8 +174,8 @@ namespace FileConverterExtension
             {
                 ToolStripMenuItem subItem = new ToolStripMenuItem
                 {
-                    Text = "Configure presets...",
-                    Image = new Icon(Properties.Resources.SettingsIcon, SystemInformation.SmallIconSize).ToBitmap(),
+                    Text = GetText("ConfigurePresetsMenuTitle"),
+                    Image = CreateMenuImage(Properties.Resources.SettingsIcon, menuImages),
                 };
 
                 fileConverterItem.DropDownItems.Add(subItem);
@@ -186,9 +187,19 @@ namespace FileConverterExtension
             return menu;
         }
 
+        private static Bitmap CreateMenuImage(Icon source, List<Bitmap> menuImages)
+        {
+            using (Icon icon = new Icon(source, SystemInformation.SmallIconSize))
+            {
+                Bitmap image = icon.ToBitmap();
+                menuImages.Add(image);
+                return image;
+            }
+        }
+
         private void RefreshExtensionCacheFromSelectedItems()
         {
-            // Retrieve selected files extensions.
+            // 每种输入扩展名只统计一次，保留原有的小写匹配规则。
             this.extensionCache.Clear();
             foreach (string filePath in this.SelectedItemPaths)
             {
@@ -207,31 +218,49 @@ namespace FileConverterExtension
         private void RefreshPresetList()
         {
             this.RefreshExtensionCacheFromSelectedItems();
+            this.LoadExtensionSettingsIfNecessary();
 
-            // Activate compatible menu entries.
-            PresetReference[] presets = this.presetReferences;
             this.menuEntries.Clear();
+            this.menuEntriesByName.Clear();
+            MenuEntry unnamedEntry = null;
             foreach (string extension in this.extensionCache)
             {
+                if (!this.presetsByExtension.TryGetValue(extension, out List<PresetReference> presets))
+                {
+                    continue;
+                }
+
                 foreach (PresetReference presetReference in presets)
                 {
-                    if (!presetReference.InputTypes.Contains(extension))
+                    MenuEntry menuEntry;
+                    if (presetReference.FullName == null)
                     {
-                        continue;
+                        menuEntry = unnamedEntry;
+                    }
+                    else
+                    {
+                        this.menuEntriesByName.TryGetValue(presetReference.FullName, out menuEntry);
                     }
 
-                    MenuEntry menuEntry = this.menuEntries.Find(entry => entry.PresetReference.FullName == presetReference.FullName);
                     if (menuEntry == null)
                     {
                         menuEntry = new MenuEntry(presetReference);
                         this.menuEntries.Add(menuEntry);
+                        if (presetReference.FullName == null)
+                        {
+                            unnamedEntry = menuEntry;
+                        }
+                        else
+                        {
+                            this.menuEntriesByName.Add(presetReference.FullName, menuEntry);
+                        }
                     }
 
                     menuEntry.ExtensionRefCount++;
                 }
             }
 
-            // Enable presets compatible with all input files.
+            // 保持原有菜单顺序及兼容所有输入扩展名时才启用的规则。
             foreach (MenuEntry menuEntry in this.menuEntries)
             {
                 menuEntry.Enabled = menuEntry.ExtensionRefCount == this.extensionCache.Count;
@@ -250,64 +279,83 @@ namespace FileConverterExtension
                 try
                 {
                     XmlHelpers.LoadFromFile("Settings", PathHelpers.UserSettingsFilePath, out this.presetReferences);
-                    return;
                 }
                 catch
                 {
-                    // Can't handle this error in the explorer extension.
+                    // 用户配置损坏时继续尝试默认配置，避免影响资源管理器。
                 }
             }
 
-            try
+            if (this.presetReferences == null)
             {
-                XmlHelpers.LoadFromFile("Settings", PathHelpers.DefaultSettingsFilePath, out this.presetReferences);
+                try
+                {
+                    XmlHelpers.LoadFromFile("Settings", PathHelpers.DefaultSettingsFilePath, out this.presetReferences);
+                }
+                catch
+                {
+                    // 配置不可用时隐藏转换菜单，避免在资源管理器中抛出异常。
+                    this.presetReferences = Array.Empty<PresetReference>();
+                }
             }
-            catch
+
+            this.BuildPresetIndex();
+        }
+
+        private void BuildPresetIndex()
+        {
+            this.presetsByExtension.Clear();
+            foreach (PresetReference presetReference in this.presetReferences)
             {
-                // Can't handle this error in the explorer extension.
+                if (presetReference?.InputTypes == null)
+                {
+                    continue;
+                }
+
+                foreach (string extension in presetReference.InputTypes)
+                {
+                    if (string.IsNullOrEmpty(extension))
+                    {
+                        continue;
+                    }
+
+                    if (!this.presetsByExtension.TryGetValue(extension, out List<PresetReference> presets))
+                    {
+                        presets = new List<PresetReference>();
+                        this.presetsByExtension.Add(extension, presets);
+                    }
+
+                    // 原有 Contains 只匹配一次，重复的 InputTypes 不应重复计数。
+                    if (presets.Count == 0 || presets[presets.Count - 1] != presetReference)
+                    {
+                        presets.Add(presetReference);
+                    }
+                }
             }
         }
 
         private void OpenSettings()
         {
-            if (string.IsNullOrEmpty(PathHelpers.FileConverterPath))
+            if (!TryGetExecutablePath(out string executablePath))
             {
-                MessageBox.Show("Can't retrieve the file converter executable path. You should try to reinstall the application.");
                 return;
             }
 
-            if (!File.Exists(PathHelpers.FileConverterPath))
+            ProcessStartInfo processStartInfo = new ProcessStartInfo(executablePath)
             {
-                MessageBox.Show($"Can't find the file converter executable ({PathHelpers.FileConverterPath}). You should try to reinstall the application.");
-                return;
-            }
-
-            ProcessStartInfo processStartInfo = new ProcessStartInfo(PathHelpers.FileConverterPath)
-            {
-                CreateNoWindow = false, 
-                UseShellExecute = false, 
-                RedirectStandardOutput = false,
+                UseShellExecute = false,
+                Arguments = "--settings",
             };
 
-            // Build arguments string.
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append("--settings");
-            
-            processStartInfo.Arguments = stringBuilder.ToString();
-            Process exeProcess = Process.Start(processStartInfo);
+            using (Process.Start(processStartInfo))
+            {
+            }
         }
 
         private void ConvertFiles(string presetName)
         {
-            if (string.IsNullOrEmpty(PathHelpers.FileConverterPath))
+            if (!TryGetExecutablePath(out string executablePath))
             {
-                MessageBox.Show("Can't retrieve the file converter executable path. You should try to reinstall the application.");
-                return;
-            }
-
-            if (!File.Exists(PathHelpers.FileConverterPath))
-            {
-                MessageBox.Show($"Can't find the file converter executable ({PathHelpers.FileConverterPath}). You should try to reinstall the application.");
                 return;
             }
 
@@ -319,10 +367,10 @@ namespace FileConverterExtension
                 sb.Append("\"");
             }
 
-            // Build arguments string.
+            // 保留现有参数协议，过长的文件列表通过临时文件传递。
             StringBuilder stringBuilder = new StringBuilder();
             BuildConversionPresetArgument(stringBuilder);
-            
+
             string fileListPath = null;
             foreach (var filePath in this.SelectedItemPaths)
             {
@@ -332,26 +380,27 @@ namespace FileConverterExtension
 
                 if (stringBuilder.Length >= MaximumProcessArgumentsLength)
                 {
-                    // Alternative way of passing arguments to not overflow the command line.
                     stringBuilder.Clear();
                     BuildConversionPresetArgument(stringBuilder);
 
-                    // Store list of file to convert in a file in Temp folder.
-                    fileListPath = Path.Combine(Path.GetTempPath(), "file-converter-input-list.txt");
-                    int index = 1;
-                    while (File.Exists(fileListPath))
-                    {
-                        fileListPath = Path.Combine(Path.GetTempPath(), $"file-converter-input-list-{index}.txt");
-                        index++;
-                    }
+                    // 使用独立名称并原子创建，避免同时启动转换时覆盖其他文件列表。
+                    fileListPath = Path.Combine(Path.GetTempPath(), $"file-converter-input-list-{Guid.NewGuid():N}.txt");
 
-                    using (FileStream file = File.OpenWrite(fileListPath))
-                    using (StreamWriter writer = new StreamWriter(file))
+                    try
                     {
-                        foreach (var path in this.SelectedItemPaths)
+                        using (FileStream file = new FileStream(fileListPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                        using (StreamWriter writer = new StreamWriter(file))
                         {
-                            writer.WriteLine(path);
+                            foreach (var path in this.SelectedItemPaths)
+                            {
+                                writer.WriteLine(path);
+                            }
                         }
+                    }
+                    catch
+                    {
+                        DeleteInputFileList(fileListPath);
+                        throw;
                     }
 
                     stringBuilder.Append(" --input-files ");
@@ -362,29 +411,79 @@ namespace FileConverterExtension
                 }
             }
 
-            var processStartInfo = new ProcessStartInfo(PathHelpers.FileConverterPath)
+            var processStartInfo = new ProcessStartInfo(executablePath)
             {
-                CreateNoWindow = false,
                 UseShellExecute = false,
-                RedirectStandardOutput = false,
                 Arguments = stringBuilder.ToString(),
             };
 
-            Process exeProcess = Process.Start(processStartInfo);
-            exeProcess.EnableRaisingEvents = true;
+            if (fileListPath == null)
+            {
+                using (Process.Start(processStartInfo))
+                {
+                }
+
+                return;
+            }
+
+            Process exeProcess = new Process { StartInfo = processStartInfo };
+            // 在启动前订阅退出事件，确保快速退出的进程也能清理文件和句柄。
             exeProcess.Exited += (sender, args) =>
             {
-                if (fileListPath != null)
-                {
-                    try
-                    {
-                        File.Delete(fileListPath);
-                    }
-                    catch 
-                    { 
-                    }
-                }
+                DeleteInputFileList(fileListPath);
+                ((Process)sender).Dispose();
             };
+            exeProcess.EnableRaisingEvents = true;
+            try
+            {
+                if (!exeProcess.Start())
+                {
+                    DeleteInputFileList(fileListPath);
+                    exeProcess.Dispose();
+                }
+            }
+            catch
+            {
+                DeleteInputFileList(fileListPath);
+                exeProcess.Dispose();
+                throw;
+            }
+        }
+
+        private static string GetText(string name) => Properties.Resources.ResourceManager.GetString(name, Properties.Resources.Culture);
+
+        private static bool TryGetExecutablePath(out string executablePath)
+        {
+            executablePath = PathHelpers.FileConverterPath;
+            if (string.IsNullOrEmpty(executablePath))
+            {
+                MessageBox.Show(GetText("InvalidExecutablePathMessage"));
+                return false;
+            }
+
+            if (!File.Exists(executablePath))
+            {
+                MessageBox.Show(string.Format(GetText("ExecutableNotFoundMessage"), executablePath));
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void DeleteInputFileList(string path)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (IOException)
+            {
+                // 临时文件被占用时不影响转换结果或资源管理器。
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // 临时目录权限变化时仍确保调用方能够释放进程句柄。
+            }
         }
     }
 }

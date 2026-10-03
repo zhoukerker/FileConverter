@@ -12,7 +12,7 @@ namespace FileConverter.ValueConverters
         {
             if (!(value is OutputType))
             {
-                throw new ArgumentException("The value must be an output type enum value.");
+                throw new ArgumentException("值必须为输出格式枚举。");
             }
 
             OutputType outputType = (OutputType)value;

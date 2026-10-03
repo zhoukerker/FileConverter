@@ -13,10 +13,10 @@ namespace FileConverter.ValueConverters.Generic
         {
             if (values == null || values.Length != 2)
             {
-                throw new ArgumentException("The values must contains the collection of elements and the researched element.");
+                throw new ArgumentException("值必须包含元素集合和待查找的元素。");
             }
 
-            //// TODO: Make this converter generic.
+            //// 待办：改为支持泛型集合的转换器。
             
             if (!(values[0] is ICollection<string>))
             {

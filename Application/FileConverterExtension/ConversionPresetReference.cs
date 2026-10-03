@@ -1,7 +1,8 @@
-// <copyright file="PresetDefinition.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="PresetDefinition.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverterExtension
 {
+    using System;
     using System.Xml.Serialization;
 
     [XmlRoot("ConversionPreset")]
@@ -24,13 +25,9 @@ namespace FileConverterExtension
 
                 if (!string.IsNullOrEmpty(this.fullName))
                 {
-                    string[] folders = this.fullName.Split('/');
-                    if (folders.Length > 0)
-                    {
-                        this.Name = folders[folders.Length - 1];
-                        System.Array.Resize(ref folders, folders.Length - 1);
-                        this.Folders = folders;
-                    }
+                    int separatorIndex = this.fullName.LastIndexOf('/');
+                    this.Name = separatorIndex < 0 ? this.fullName : this.fullName.Substring(separatorIndex + 1);
+                    this.Folders = separatorIndex < 0 ? Array.Empty<string>() : this.fullName.Substring(0, separatorIndex).Split('/');
                 }
             }
         }
@@ -41,6 +38,13 @@ namespace FileConverterExtension
             get;
             set;
         }
+
+        [XmlAttribute]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool IsDefaultSettings { get; set; }
+
+        [XmlIgnore]
+        public string DisplayName => PresetDisplayNames.GetName(this.Name, this.IsDefaultSettings);
 
         [XmlIgnore]
         public string Name

@@ -1,13 +1,13 @@
-// <copyright file="ViewModelLocator.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="ViewModelLocator.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 /*
-  In App.xaml:
+  在 Application.xaml 中：
   <Application.Resources>
       <vm:ViewModelLocator xmlns:vm="clr-namespace:FileConverter"
                            x:Key="Locator" />
   </Application.Resources>
-  
-  In the View:
+
+  在视图中：
   DataContext="{Binding Source={StaticResource Locator}, Path=ViewModelName}"
 */
 
@@ -17,13 +17,13 @@ namespace FileConverter.ViewModels
     using Microsoft.Extensions.DependencyInjection;
 
     /// <summary>
-    /// This class contains static references to all the view models in the
-    /// application and provides an entry point for the bindings.
+    /// 保存应用中的视图模型引用，
+    /// 并提供视图绑定的访问入口。
     /// </summary>
     public class ViewModelLocator
     {
         /// <summary>
-        /// Initializes a new instance of the ViewModelLocator class.
+        /// 初始化视图模型定位器。
         /// </summary>
         public ViewModelLocator()
         {

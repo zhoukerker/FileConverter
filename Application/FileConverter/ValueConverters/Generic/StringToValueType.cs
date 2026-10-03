@@ -18,13 +18,13 @@ namespace FileConverter.ValueConverters.Generic
             string typeName = parameter as string;
             if (typeName == null)
             {
-                throw new ArgumentNullException(nameof(parameter), "The parameter must contains a convertible type.");
+                throw new ArgumentNullException(nameof(parameter), "参数必须包含可转换的类型名称。");
             }
 
             Type type = Type.GetType(typeName);
             if (type == null)
             {
-                throw new Exception("Invalid enum type " + typeName + ".");
+                throw new Exception("转换类型无效：" + typeName + "。");
             }
 
             return System.Convert.ChangeType(value, type, culture);

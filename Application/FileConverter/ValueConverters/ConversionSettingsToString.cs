@@ -17,7 +17,7 @@ namespace FileConverter.ValueConverters
 
             if (!(value is IConversionSettings))
             {
-                throw new ArgumentException("The value must be a conversion preset array.");
+                throw new ArgumentException("值必须为转换设置对象。");
             }
 
             IConversionSettings settings = (IConversionSettings)value;
@@ -25,13 +25,13 @@ namespace FileConverter.ValueConverters
             string parameterString = parameter as string;
             if (parameterString == null)
             {
-                throw new ArgumentException("The parameter must be a string value.");
+                throw new ArgumentException("参数必须为字符串。");
             }
 
             string[] parameters = parameterString.Split(',');
             if (parameters.Length < 1 || parameters.Length > 2)
             {
-                throw new ArgumentException("The parameter format must be 'SettingsKey[,DefaultValue]'.");
+                throw new ArgumentException("参数格式必须为 'SettingsKey[,DefaultValue]'。");
             }
 
             string key = parameters[0];
@@ -58,14 +58,14 @@ namespace FileConverter.ValueConverters
 
             if (!(value is string))
             {
-                throw new ArgumentException("value");
+                throw new ArgumentException("值必须为字符串。");
             }
 
             string settingsValue = (string)value;
 
             if (!(parameter is string))
             {
-                throw new ArgumentException("parameter");
+                throw new ArgumentException("参数必须为字符串。");
             }
 
             string settingsKey = (string)parameter;

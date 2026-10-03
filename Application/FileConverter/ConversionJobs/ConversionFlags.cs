@@ -2,7 +2,7 @@
 namespace FileConverter.ConversionJobs
 {
     /// <summary>
-    /// This enum describe the special conversion state that need to be multi-threads prerequisites.
+    /// 描述并行调度时需要满足互斥条件的特殊转换状态。
     /// </summary>
     [System.Flags]
     public enum ConversionFlags

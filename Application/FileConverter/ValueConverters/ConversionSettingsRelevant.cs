@@ -17,7 +17,7 @@ namespace FileConverter.ValueConverters
 
             if (!(value is IConversionSettings))
             {
-                throw new ArgumentException("The value must be a conversion preset array.");
+                throw new ArgumentException("值必须为转换设置对象。");
             }
 
             IConversionSettings settings = (IConversionSettings)value;
@@ -25,7 +25,7 @@ namespace FileConverter.ValueConverters
             string key = parameter as string;
             if (key == null)
             {
-                throw new ArgumentException("The parameter must be a string value.");
+                throw new ArgumentException("参数必须为字符串。");
             }
 
             return settings.ContainsKey(key);

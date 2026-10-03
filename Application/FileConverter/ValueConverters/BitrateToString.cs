@@ -12,7 +12,7 @@ namespace FileConverter.ValueConverters
         {
             if (!(value is double))
             {
-                throw new ArgumentException("The value must be a double value.");
+                throw new ArgumentException("值必须为 double 类型。");
             }
 
             double bitrate = (double)value;

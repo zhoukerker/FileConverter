@@ -1,4 +1,4 @@
-// <copyright file="UpgradeVersionDescription.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="UpgradeVersionDescription.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverter.Services
 {
@@ -19,7 +19,7 @@ namespace FileConverter.Services
             get;
             set;
         }
-        
+
         [XmlElement("URL")]
         public string InstallerURL
         {

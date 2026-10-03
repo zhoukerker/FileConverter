@@ -1,4 +1,4 @@
-// <copyright file="DiagnosticsViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="DiagnosticsViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverter.ViewModels
 {
@@ -12,14 +12,14 @@ namespace FileConverter.ViewModels
     using FileConverter.Services;
 
     /// <summary>
-    /// This class contains properties that the diagnostics View can data bind to.
+    /// 提供日志视图的数据绑定属性。
     /// </summary>
     public class DiagnosticsViewModel : ObservableRecipient
     {
         private RelayCommand<CancelEventArgs> closeCommand;
 
         /// <summary>
-        /// Initializes a new instance of the DiagnosticsViewModel class.
+        /// 初始化日志视图模型。
         /// </summary>
         public DiagnosticsViewModel()
         {

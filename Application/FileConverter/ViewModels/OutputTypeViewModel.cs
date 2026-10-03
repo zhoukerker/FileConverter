@@ -1,8 +1,8 @@
-// <copyright file="OutputTypeViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="OutputTypeViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverter.ViewModels
 {
-    public class OutputTypeViewModel 
+    public class OutputTypeViewModel
     {
         public OutputTypeViewModel(OutputType type)
         {

@@ -1,4 +1,4 @@
-﻿// Source: https://tyrrrz.me/Blog/WPF-TreeView-SelectedItem-TwoWay-binding
+﻿// 参考来源： https://tyrrrz.me/Blog/WPF-TreeView-SelectedItem-TwoWay-binding
 
 using System.Collections.Specialized;
 using System.Windows;
@@ -35,21 +35,21 @@ namespace FileConverter.Views
             this.treeViewItemEventSetter = new EventSetter(FrameworkElement.LoadedEvent, new RoutedEventHandler(this.OnTreeViewItemLoaded));
         }
 
-        // Bindable selected item
+        // 可绑定的选中项。
         public object SelectedItem
         {
             get => this.GetValue(SelectedItemProperty);
             set => this.SetValue(SelectedItemProperty, value);
         }
 
-        // Predicate that checks if two items are hierarchically related
+        // 判断两个项是否存在层级关系。
         public IsChildOfPredicate HierarchyPredicate
         {
             get => (IsChildOfPredicate)this.GetValue(HierarchyPredicateProperty);
             set => this.SetValue(HierarchyPredicateProperty, value);
         }
 
-        // Should expand selected?
+        // 是否展开选中项。
         public bool ExpandSelected
         {
             get => (bool)this.GetValue(ExpandSelectedProperty);
@@ -99,7 +99,7 @@ namespace FileConverter.Views
             behavior.modelHandled = false;
         }
 
-        // Update state of all items starting with given, with optional recursion
+        // 从指定项开始更新状态，并按需递归。
         private void UpdateTreeViewItem(TreeViewItem item, bool recurse)
         {
             if (this.SelectedItem == null)
@@ -109,12 +109,12 @@ namespace FileConverter.Views
 
             var model = item.DataContext;
 
-            // If the selected item is this model and is not yet selected - select and return
+            // 当前模型对应选中项时，设置选中状态并返回。
             if (this.SelectedItem == model && !item.IsSelected)
             {
                 item.IsSelected = true;
             }
-            // If the selected item is a parent of this model - expand
+            // 当前模型是选中项的父级时展开。
             else
             {
                 bool isParentOfModel = this.HierarchyPredicate?.Invoke(this.SelectedItem, model) ?? true;
@@ -129,7 +129,7 @@ namespace FileConverter.Views
                 item.IsExpanded = true;
             }
 
-            // Recurse into children
+            // 递归处理子项。
             if (recurse)
             {
                 foreach (var subitem in item.Items)
@@ -142,7 +142,7 @@ namespace FileConverter.Views
             }
         }
 
-        // Update state of all items
+        // 更新所有项的状态。
         private void UpdateAllTreeViewItems()
         {
             var treeView = this.AssociatedObject;
@@ -155,7 +155,7 @@ namespace FileConverter.Views
             }
         }
 
-        // Inject Loaded event handler into ItemContainerStyle
+        // 向 ItemContainerStyle 添加 Loaded 事件处理程序。
         private void UpdateTreeViewItemStyle()
         {
             if (this.AssociatedObject.ItemContainerStyle == null)

@@ -12,7 +12,7 @@ namespace FileConverter.ValueConverters.Generic
         {
             if (values == null)
             {
-                throw new ArgumentException("The values must not be null.");
+                throw new ArgumentException("值数组不能为空。");
             }
             
             string format = parameter as string;

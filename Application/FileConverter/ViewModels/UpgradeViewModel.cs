@@ -1,4 +1,4 @@
-// <copyright file="UpgradeViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="UpgradeViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverter.ViewModels
 {
@@ -12,7 +12,7 @@ namespace FileConverter.ViewModels
     using FileConverter.Services;
 
     /// <summary>
-    /// This class contains properties that the upgrade View can data bind to.
+    /// 提供更新视图的数据绑定属性。
     /// </summary>
     public class UpgradeViewModel : ObservableRecipient
     {
@@ -23,7 +23,7 @@ namespace FileConverter.ViewModels
         private RelayCommand<CancelEventArgs> closeCommand;
 
         /// <summary>
-        /// Initializes a new instance of the UpgradeViewModel class.
+        /// 初始化更新视图模型。
         /// </summary>
         public UpgradeViewModel()
         {
@@ -56,7 +56,7 @@ namespace FileConverter.ViewModels
                 return this.launchInstallerCommand;
             }
         }
-        
+
         public ICommand CloseCommand
         {
             get

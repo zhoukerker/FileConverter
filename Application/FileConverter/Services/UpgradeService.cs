@@ -5,7 +5,6 @@ namespace FileConverter.Services
     using System;
     using System.IO;
     using System.Net;
-    using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using System.Xml;
     using System.Xml.Serialization;
@@ -15,13 +14,9 @@ namespace FileConverter.Services
     using FileConverter.Annotations;
     using FileConverter.Diagnostics;
 
-    public class UpgradeService : ObservableObject, IUpgradeService
+    public class UpgradeService : ObservableObject, IUpgradeService, IDisposable
     {
-#if DEBUG
-        private const string BaseURI = "https://raw.githubusercontent.com/Tichau/FileConverter/integration/";
-#else
-        private const string BaseURI = "https://raw.githubusercontent.com/Tichau/FileConverter/master/";
-#endif
+        private const string BaseURI = "https://raw.githubusercontent.com/zhoukerker/FileConverter/integration/";
 
         [NotNull]
         private readonly WebClient webClient = new WebClient();
@@ -44,7 +39,7 @@ namespace FileConverter.Services
                 this.OnPropertyChanged();
             }
         }
-        
+
         public async Task<UpgradeVersionDescription> CheckForUpgrade()
         {
             Task<UpgradeVersionDescription> task = null;
@@ -65,7 +60,12 @@ namespace FileConverter.Services
             }
             catch (Exception exception)
             {
-                Diagnostics.Debug.Log($"Failed to check upgrade: {exception.Message}.");
+                Diagnostics.Debug.Log($"检查更新失败：{exception.Message}");
+            }
+
+            if (task == null)
+            {
+                return null;
             }
 
             UpgradeVersionDescription versionDescription = await task;
@@ -100,21 +100,16 @@ namespace FileConverter.Services
             Uri uri = new Uri(UpgradeService.BaseURI + "CHANGELOG.md");
             try
             {
-                Task<Stream> openReadTaskAsync = this.webClient.OpenReadTaskAsync(uri);
-                if (openReadTaskAsync == null)
-                {
-                    return null;
-                }
-
-                Stream stream = await openReadTaskAsync;
+                using (WebClient client = new WebClient())
+                using (Stream stream = await client.OpenReadTaskAsync(uri))
                 using (StreamReader reader = new StreamReader(stream))
                 {
-                    this.UpgradeVersionDescription.ChangeLog = reader.ReadToEnd();
+                    this.UpgradeVersionDescription.ChangeLog = await reader.ReadToEndAsync();
                 }
             }
             catch (Exception)
             {
-                Debug.LogError("Error while retrieving change log.");
+                Debug.LogError("获取更新日志失败。");
                 return null;
             }
 
@@ -125,7 +120,21 @@ namespace FileConverter.Services
         {
             if (this.UpgradeVersionDescription == null)
             {
-                Debug.Log("Can't start upgrade because no check upgrade have been done.");
+                Debug.Log("尚未检查更新，无法开始升级。");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(this.UpgradeVersionDescription.InstallerURL))
+            {
+                this.UpgradeVersionDescription.NeedToUpgrade = false;
+                Debug.LogError("当前版本尚未发布安装包，无法下载更新。请等待项目发布安装包后再试。");
+                return;
+            }
+
+            if (!Uri.TryCreate(this.UpgradeVersionDescription.InstallerURL, UriKind.Absolute, out _))
+            {
+                this.UpgradeVersionDescription.NeedToUpgrade = false;
+                Debug.LogError("更新安装包地址无效，无法下载。请检查项目发布的版本说明。");
                 return;
             }
 
@@ -136,7 +145,7 @@ namespace FileConverter.Services
             }
             catch (Exception exception)
             {
-                Debug.Log($"Failed to download upgrade: {exception.Message}.");
+                Debug.Log($"下载更新失败：{exception.Message}");
             }
         }
 
@@ -144,18 +153,24 @@ namespace FileConverter.Services
         {
             if (this.UpgradeVersionDescription == null)
             {
-                Debug.Log("Can't cancel upgrade because there is no upgrade in progress.");
+                Debug.Log("没有正在进行的更新，无法取消。");
                 return;
             }
 
-            Debug.Log("Cancel application upgrade.");
+            Debug.Log("取消应用程序更新。");
             this.UpgradeVersionDescription.NeedToUpgrade = false;
+            this.webClient.CancelAsync();
+        }
+
+        public void Dispose()
+        {
+            this.webClient.Dispose();
         }
 
         private async Task<UpgradeVersionDescription> DownloadLatestVersionDescription()
         {
 #if BUILD32
-            Uri uri = new Uri(Helpers.BaseURI + "version (x86).xml");
+            Uri uri = new Uri(UpgradeService.BaseURI + "version (x86).xml");
 #else
             Uri uri = new Uri(UpgradeService.BaseURI + "version.xml");
 #endif
@@ -163,8 +178,6 @@ namespace FileConverter.Services
             UpgradeVersionDescription description = null;
             try
             {
-                Stream stream = await this.webClient.OpenReadTaskAsync(uri);
-
                 XmlRootAttribute xmlRoot = new XmlRootAttribute
                 {
                     ElementName = "Version"
@@ -178,6 +191,8 @@ namespace FileConverter.Services
                     IgnoreComments = true
                 };
 
+                using (WebClient client = new WebClient())
+                using (Stream stream = await client.OpenReadTaskAsync(uri))
                 using (XmlReader xmlReader = XmlReader.Create(stream, xmlReaderSettings))
                 {
                     description = (UpgradeVersionDescription)serializer.Deserialize(xmlReader);
@@ -185,7 +200,7 @@ namespace FileConverter.Services
             }
             catch (Exception)
             {
-                Debug.Log("Error while retrieving change log.");
+                Debug.Log("获取最新版本信息失败。");
                 return null;
             }
 
@@ -201,21 +216,15 @@ namespace FileConverter.Services
 
             if (this.UpgradeVersionDescription.InstallerDownloadInProgress)
             {
-                throw new Exception("The installer download is currently in progress.");
+                throw new Exception("安装包正在下载。");
             }
 
-            Uri uri = new Uri(this.UpgradeVersionDescription.InstallerURL);
+            Uri uri = new Uri(this.UpgradeVersionDescription.InstallerURL, UriKind.Absolute);
 
-            string fileName = "FileConverter-setup.msi";
-            Regex retrieveFileNameRegex = new Regex("/([^/]*)");
-            MatchCollection matchCollection = retrieveFileNameRegex.Matches(this.UpgradeVersionDescription.InstallerURL);
-            if (matchCollection.Count > 0)
+            string fileName = Path.GetFileName(uri.LocalPath);
+            if (string.IsNullOrEmpty(fileName))
             {
-                Match match = matchCollection[matchCollection.Count - 1];
-                if (match.Groups.Count > 1)
-                {
-                    fileName = match.Groups[1].Value;
-                }
+                fileName = "FileConverter-setup.msi";
             }
 
             string tempPath = System.IO.Path.GetTempPath();
@@ -225,29 +234,38 @@ namespace FileConverter.Services
             this.UpgradeVersionDescription.InstallerDownloadInProgress = true;
             this.UpgradeVersionDescription.InstallerDownloadProgress = 0;
 
-            // Source: https://stackoverflow.com/questions/2859790/the-request-was-aborted-could-not-create-ssl-tls-secure-channel#2904963
+            // 参考来源： https://stackoverflow.com/questions/2859790/the-request-was-aborted-could-not-create-ssl-tls-secure-channel#2904963
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
             this.webClient.DownloadProgressChanged += this.WebClient_DownloadProgressChanged;
 
             try
             {
-                await this.webClient.DownloadFileTaskAsync(uri, installerPath);
+                // 退出流程可能等待下载；完成状态不能依赖已停止的界面调度器。
+                await Task.Run(() => this.webClient.DownloadFileTaskAsync(uri, installerPath)).ConfigureAwait(false);
 
                 this.UpgradeVersionDescription.InstallerDownloadProgress = 100;
-                this.UpgradeVersionDescription.InstallerDownloadInProgress = false;
-                this.UpgradeVersionDescription = null;
             }
             catch (Exception exception)
             {
-                Debug.LogError("Failed to download the new File Converter upgrade. You should try again or download it manually.");
+                if (exception is OperationCanceledException ||
+                    (exception is WebException webException && webException.Status == WebExceptionStatus.RequestCanceled))
+                {
+                    return;
+                }
+
+                Debug.LogError("下载 File Converter 更新失败，请重试或手动下载。");
                 Debug.Log(exception.ToString());
                 this.UpgradeVersionDescription.NeedToUpgrade = false;
             }
 
-            this.webClient.DownloadProgressChanged -= this.WebClient_DownloadProgressChanged;
+            finally
+            {
+                this.UpgradeVersionDescription.InstallerDownloadInProgress = false;
+                this.webClient.DownloadProgressChanged -= this.WebClient_DownloadProgressChanged;
+            }
         }
-        
+
         private void WebClient_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs eventArgs)
         {
             this.UpgradeVersionDescription.InstallerDownloadProgress = eventArgs.ProgressPercentage;

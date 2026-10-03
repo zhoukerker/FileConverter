@@ -5,7 +5,7 @@ namespace FileConverter.Controls
     using System.Windows.Controls;
 
     /// <summary>
-    /// Interaction logic for ConversionJobControl.xaml
+    /// 转换任务控件的界面交互逻辑。
     /// </summary>
     public partial class ConversionJobControl : UserControl
     {

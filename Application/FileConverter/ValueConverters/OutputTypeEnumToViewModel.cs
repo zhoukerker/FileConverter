@@ -17,7 +17,7 @@ namespace FileConverter.ValueConverters
         {
             if (!(value is OutputType))
             {
-                throw new ArgumentException("The value must be an output type value.");
+                throw new ArgumentException("值必须为输出格式。");
             }
 
             OutputType outputType = (OutputType)value;

@@ -12,12 +12,12 @@ namespace FileConverter.ValueConverters
         {
             if (values == null || values.Length != 3)
             {
-                throw new ArgumentException("The values must contains the input file path, the output file extension and the ouput file template.");
+                throw new ArgumentException("值必须依次包含输入文件路径、输出文件扩展名和输出文件名模板。");
             }
 
             if (!(values[1] is OutputType))
             {
-                return "Invalid output file extension (argument 1).";
+                return "输出文件扩展名无效（参数 1）。";
             }
 
             string inputFilePath = values[0] as string;

@@ -31,7 +31,7 @@
     <Color x:Key="TileButton_MouseOver_BackgroundColor">#F3EFED</Color>
     <Color x:Key="TileButton_MouseOver_BorderColor">#D3D0CE</Color>
 
-    <!-- Custom styles colors -->
+    <!-- 自定义样式颜色 -->
     <SolidColorBrush x:Key="Button_BackgroundBrush" Color="{StaticResource Button_BackgroundColor}" />
     <SolidColorBrush x:Key="Button_BorderBrush" Color="{StaticResource Control_BorderColor}" />
     <SolidColorBrush x:Key="Button_IsMouseOver_BackgroundBrush" Color="{StaticResource Button_MouseOver_BackgroundColor}" />
@@ -49,7 +49,7 @@
     <SolidColorBrush x:Key="TabItem_IsSelected_BorderBrush" Color="{StaticResource Control_BorderColor}" />
 
     <SolidColorBrush x:Key="TextBox_BackgroundBrush" Color="{StaticResource BackgroundColor}" />
-    
+
     <SolidColorBrush x:Key="TileButton_BackgroundBrush" Color="{StaticResource TransparentColor}" />
     <SolidColorBrush x:Key="TileButton_BorderBrush" Color="{StaticResource TransparentColor}" />
     <SolidColorBrush x:Key="TileButton_IsMouseOver_BackgroundBrush" Color="{StaticResource TileButton_MouseOver_BackgroundColor}" />
@@ -62,14 +62,14 @@
 
     <SolidColorBrush x:Key="Window_BackgroundBrush" Color="{StaticResource Window_BackgroundColor}" />
 
-    <!-- Markdown -->
+    <!-- Markdown 文档样式 -->
     <SolidColorBrush x:Key="Markdown_ForegroundBrush" Color="{StaticResource LighterForegroundColor}" />
     <SolidColorBrush x:Key="Markdown_BackgroundBrush" Color="{StaticResource BackgroundColor}" />
     <SolidColorBrush x:Key="Markdown_Heading1ForegroundBrush" Color="{StaticResource MainColor}" />
     <SolidColorBrush x:Key="Markdown_Heading2ForegroundBrush" Color="{StaticResource AccentForegroundColor}" />
     <SolidColorBrush x:Key="Markdown_Heading3ForegroundBrush" Color="{StaticResource AccentForegroundColor}" />
 
-    <!-- Colors used by ConversionStateToBrush -->
+    <!-- 转换状态颜色 -->
     <SolidColorBrush x:Key="UnknownForegroundBrush" Color="{StaticResource LighterForegroundColor}" />
     <SolidColorBrush x:Key="ReadyForegroundBrush" Color="{StaticResource DarkForegroundColor}" />
     <SolidColorBrush x:Key="InProgressForegroundBrush" Color="{StaticResource PendingForegroundColor}" />
@@ -81,8 +81,8 @@
     <SolidColorBrush x:Key="InProgressBackgroundBrush" Color="{StaticResource PendingBackgroundColor}" />
     <SolidColorBrush x:Key="DoneBackgroundBrush" Color="{StaticResource SuccessBackgroundColor}" />
     <SolidColorBrush x:Key="FailedBackgroundBrush" Color="{StaticResource ErrorBackgroundColor}" />
-    
-    <!-- Misc -->
+
+    <!-- 其他颜色 -->
     <SolidColorBrush x:Key="MainLighterBrush" Color="{StaticResource MainLighterColor}" />
     <SolidColorBrush x:Key="MainLightBrush" Color="{StaticResource MainLightColor}" />
     <SolidColorBrush x:Key="MainBrush" Color="{StaticResource MainColor}" />
@@ -92,6 +92,5 @@
     <SolidColorBrush x:Key="LightForegroundBrush" Color="{StaticResource LightForegroundColor}" />
     <SolidColorBrush x:Key="AccentForegroundBrush" Color="{StaticResource AccentForegroundColor}" />
     <SolidColorBrush x:Key="ErrorForegroundBrush" Color="{StaticResource ErrorForegroundColor}" />
-    
+
 </ResourceDictionary>
-    

@@ -19,8 +19,8 @@ namespace FileConverter.ConversionJobs
         {
             base.Cancel();
 
-            this.pngConversionJob.Cancel();
-            this.icoConversionJob.Cancel();
+            this.pngConversionJob?.Cancel();
+            this.icoConversionJob?.Cancel();
         }
 
         protected override void Initialize()
@@ -29,23 +29,24 @@ namespace FileConverter.ConversionJobs
 
             if (this.ConversionPreset == null)
             {
-                throw new Exception("The conversion preset must be valid.");
+                throw new Exception("转换预设无效。");
             }
 
-            // Generate intermediate file path.
+            // 生成临时中间文件路径。
             string fileName = Path.GetFileName(this.OutputFilePath);
             string tempPath = Path.GetTempPath();
             this.intermediateFilePath = PathHelpers.GenerateUniquePath(tempPath + fileName + ".png");
 
-            // Convert input in png file to send it to ffmpeg for the ico conversion.
+            // 将输入转换为 FFmpeg 能读取的 PNG。
             ConversionPreset intermediatePreset = new ConversionPreset("To compatible image", OutputType.Png, this.ConversionPreset.InputTypes.ToArray());
             intermediatePreset.SetSettingsValue(ConversionPreset.ConversionSettingKeys.ImageClampSizePowerOf2, "True");
             intermediatePreset.SetSettingsValue(ConversionPreset.ConversionSettingKeys.ImageMaximumSize, "256");
             this.pngConversionJob = ConversionJobFactory.Create(intermediatePreset, this.InputFilePath);
             this.pngConversionJob.PrepareConversion(this.intermediateFilePath);
 
-            // Convert png file into ico.
-            this.icoConversionJob = new ConversionJob_FFMPEG(this.ConversionPreset, this.intermediateFilePath);
+            // 将 PNG 编码为图标。
+            ConversionPreset encodingPreset = new ConversionPreset("Ico encoding", this.ConversionPreset, "png");
+            this.icoConversionJob = new ConversionJob_FFMPEG(encodingPreset, this.intermediateFilePath);
             this.icoConversionJob.PrepareConversion(this.OutputFilePath);
         }
 
@@ -53,32 +54,24 @@ namespace FileConverter.ConversionJobs
         {
             if (this.ConversionPreset == null)
             {
-                throw new Exception("The conversion preset must be valid.");
+                throw new Exception("转换预设无效。");
             }
 
             Diagnostics.Debug.Log(string.Empty);
-            Diagnostics.Debug.Log("Convert image to PNG (intermediate format).");
-            this.pngConversionJob.StartConversion();
-
-            if (this.pngConversionJob.State != ConversionState.Done)
+            Diagnostics.Debug.Log("将图片转换为 PNG 中间格式。");
+            if (!this.StartChildConversion(this.pngConversionJob, false))
             {
-                this.ConversionFailed(this.pngConversionJob.ErrorMessage);
                 return;
             }
 
             Diagnostics.Debug.Log(string.Empty);
-            Diagnostics.Debug.Log("Convert png intermediate image to ICO.");
-            this.icoConversionJob.StartConversion();
+            Diagnostics.Debug.Log("将 PNG 中间图片编码为图标。");
+            this.StartChildConversion(this.icoConversionJob, false);
+        }
 
-            if (this.icoConversionJob.State != ConversionState.Done)
-            {
-                this.ConversionFailed(this.icoConversionJob.ErrorMessage);
-                return;
-            }
-
-            Diagnostics.Debug.Log($"Delete intermediate file {this.intermediateFilePath}.");
-
-            File.Delete(this.intermediateFilePath);
+        protected override void ReleaseResources()
+        {
+            DeleteIntermediateFile(this.intermediateFilePath);
         }
     }
 }

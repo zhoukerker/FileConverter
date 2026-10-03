@@ -10,9 +10,8 @@
                     xmlns:viewModels="clr-namespace:FileConverter.ViewModels"
                     xmlns:conversionJobs="clr-namespace:FileConverter.ConversionJobs">
 
-    <!-- Converters -->
+    <!-- 值转换器 -->
 
-    <generic:CultureInfoToStringConverter x:Key="CultureInfoToString"/>
     <generic:ObjectToLocalizedString x:Key="ObjectToLocalizedString"/>
     <generic:DoubleToTimeString x:Key="DoubleToTimeString"/>
     <valueConverters:FileNameConverter x:Key="FileNameConverter"/>
@@ -49,7 +48,7 @@
         <generic:BoolToVisibility/>
     </generic:ValueConverterGroup>
 
-    <!-- Conversion settings data template -->
+    <!-- 转换设置数据模板 -->
 
     <DataTemplate x:Key="EmptyDataTemplate" DataType="{x:Type fileConverter:ConversionPreset}">
         <StackPanel/>
@@ -68,10 +67,10 @@
 
             <Label Grid.Row="0" Grid.Column="0" Content="{x:Static project:Resources.Encoding}" />
             <DockPanel Grid.Row="0" Grid.Column="1">
-                <RadioButton x:Name="WAV8radioButton" Content="8-bits" ToolTip="{x:Static project:Resources.Wav8bitsDescription}" Margin="5" IsChecked="{Binding Settings, ConverterParameter=AudioEncodingMode|Wav8, Converter={StaticResource ConversionSettingsEquals}, Mode=TwoWay}" />
-                <RadioButton x:Name="WAV16radioButton" Content="16-bits" ToolTip="{x:Static project:Resources.Wav16bitsDescription}" Margin="5" IsChecked="{Binding Settings, ConverterParameter=AudioEncodingMode|Wav16, Converter={StaticResource ConversionSettingsEquals}, Mode=TwoWay}"/>
-                <RadioButton x:Name="WAV24radioButton" Content="24-bits" ToolTip="{x:Static project:Resources.Wav24bitsDescription}" Margin="5" IsChecked="{Binding Settings, ConverterParameter=AudioEncodingMode|Wav24, Converter={StaticResource ConversionSettingsEquals}, Mode=TwoWay}"/>
-                <RadioButton x:Name="WAV32radioButton" Content="32-bits" ToolTip="{x:Static project:Resources.Wav32bitsDescription}" Margin="5" IsChecked="{Binding Settings, ConverterParameter=AudioEncodingMode|Wav32, Converter={StaticResource ConversionSettingsEquals}, Mode=TwoWay}"/>
+                <RadioButton x:Name="WAV8radioButton" Content="8 位" ToolTip="{x:Static project:Resources.Wav8bitsDescription}" Margin="5" IsChecked="{Binding Settings, ConverterParameter=AudioEncodingMode|Wav8, Converter={StaticResource ConversionSettingsEquals}, Mode=TwoWay}" />
+                <RadioButton x:Name="WAV16radioButton" Content="16 位" ToolTip="{x:Static project:Resources.Wav16bitsDescription}" Margin="5" IsChecked="{Binding Settings, ConverterParameter=AudioEncodingMode|Wav16, Converter={StaticResource ConversionSettingsEquals}, Mode=TwoWay}"/>
+                <RadioButton x:Name="WAV24radioButton" Content="24 位" ToolTip="{x:Static project:Resources.Wav24bitsDescription}" Margin="5" IsChecked="{Binding Settings, ConverterParameter=AudioEncodingMode|Wav24, Converter={StaticResource ConversionSettingsEquals}, Mode=TwoWay}"/>
+                <RadioButton x:Name="WAV32radioButton" Content="32 位" ToolTip="{x:Static project:Resources.Wav32bitsDescription}" Margin="5" IsChecked="{Binding Settings, ConverterParameter=AudioEncodingMode|Wav32, Converter={StaticResource ConversionSettingsEquals}, Mode=TwoWay}"/>
             </DockPanel>
 
             <Label Grid.Row="1" Grid.Column="0" Content="{x:Static project:Resources.ChannelCountTitle}" ToolTip="{x:Static project:Resources.ChannelCountTooltip}" />
@@ -103,7 +102,7 @@
 
             <Label Grid.Row="1" Grid.Column="0" Content="{x:Static project:Resources.Quality}" />
             <controls:EncodingQualitySliderControl Grid.Row="1" Grid.Column="1"
-        			EncodingMode="{Binding Settings, ConverterParameter=AudioEncodingMode|FileConverter.Controls.EncodingMode, Converter={StaticResource ConversionSettingsToEnum}, Mode=OneWay}" 
+                EncodingMode="{Binding Settings, ConverterParameter=AudioEncodingMode|FileConverter.Controls.EncodingMode, Converter={StaticResource ConversionSettingsToEnum}, Mode=OneWay}"
         			Bitrate="{Binding Settings, ConverterParameter=AudioBitrate|System.Double, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay, TargetNullValue=190}" />
 
             <Label Grid.Row="2" Grid.Column="0" Content="{x:Static project:Resources.ChannelCountTitle}" ToolTip="{x:Static project:Resources.ChannelCountTooltip}" />
@@ -127,7 +126,7 @@
             </Grid.RowDefinitions>
 
             <Label Grid.Row="0" Grid.Column="0" Content="{x:Static project:Resources.Quality}" />
-            <controls:EncodingQualitySliderControl Grid.Row="0" Grid.Column="1" EncodingMode="OggVBR" 
+            <controls:EncodingQualitySliderControl Grid.Row="0" Grid.Column="1" EncodingMode="OggVBR"
         			Bitrate="{Binding Settings, ConverterParameter=AudioBitrate|System.Double, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay, TargetNullValue=160}" />
 
             <Label Grid.Row="1" Grid.Column="0" Content="{x:Static project:Resources.ChannelCountTitle}" ToolTip="{x:Static project:Resources.ChannelCountTooltip}" />
@@ -151,7 +150,7 @@
             </Grid.RowDefinitions>
 
             <Label Grid.Row="0" Grid.Column="0" Content="{x:Static project:Resources.Quality}" />
-            <controls:EncodingQualitySliderControl Grid.Row="0" Grid.Column="1" EncodingMode="AacVBR" 
+            <controls:EncodingQualitySliderControl Grid.Row="0" Grid.Column="1" EncodingMode="AacVBR"
         			Bitrate="{Binding Settings, ConverterParameter=AudioBitrate|System.Double, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay, TargetNullValue=128}" />
 
             <Label Grid.Row="1" Grid.Column="0" Content="{x:Static project:Resources.ChannelCountTitle}" ToolTip="{x:Static project:Resources.ChannelCountTooltip}" />
@@ -199,7 +198,7 @@
             <Slider x:Name="QualitySlider" Grid.Row="0" Grid.Column="1" Value="{Binding Settings, ConverterParameter=VideoFramesPerSecond|System.Int32, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay}"
                             Margin="0,2,0,0" VerticalAlignment="Top" AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" IsSelectionRangeEnabled="True" SelectionStart="10" SelectionEnd="20" Minimum="1" Maximum="30" TickPlacement="BottomRight" SmallChange="1" LargeChange="4" TickFrequency="1" Foreground="{DynamicResource MainDarkBrush}" />
 
-            <!-- Scale -->
+            <!-- 缩放 -->
             <Label Content="{x:Static project:Resources.Scale}" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right"/>
             <Grid Grid.Row="1" Grid.Column="1">
                 <Grid.ColumnDefinitions>
@@ -217,7 +216,7 @@
                 </Label>
             </Grid>
 
-            <!--Rotate-->
+            <!-- 旋转 -->
             <Label Content="{x:Static project:Resources.Rotate}" Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right"/>
             <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
                 <RadioButton Content="{x:Static project:Resources.ZeroDegreesRotationTitle}" ToolTip="{x:Static project:Resources.ZeroDegreesRotationTooltip}" Margin="0,7,7,7"
@@ -256,7 +255,7 @@
             <Slider x:Name="QualitySlider" Grid.Row="1" Grid.Column="1" Value="{Binding Settings, ConverterParameter=VideoQuality|System.Double, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay}"
                             Margin="0,2,0,0" VerticalAlignment="Top" AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" IsSelectionRangeEnabled="True" SelectionStart="20" SelectionEnd="28" Minimum="0" Maximum="30" TickPlacement="BottomRight" SmallChange="1" LargeChange="5" TickFrequency="1" Foreground="{DynamicResource MainDarkBrush}" />
 
-            <!-- Scale -->
+            <!-- 缩放 -->
             <Label Content="{x:Static project:Resources.Scale}" Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right"/>
             <Grid Grid.Row="2" Grid.Column="1">
                 <Grid.ColumnDefinitions>
@@ -274,7 +273,7 @@
                 </Label>
             </Grid>
 
-            <!--Rotate-->
+            <!-- 旋转 -->
             <Label Content="{x:Static project:Resources.Rotate}" Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right"/>
             <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
                 <RadioButton Content="{x:Static project:Resources.ZeroDegreesRotationTitle}" ToolTip="{x:Static project:Resources.ZeroDegreesRotationTooltip}" Margin="0,7,7,7"
@@ -321,12 +320,12 @@
             </DockPanel>
 
             <Label Grid.Row="1" Grid.Column="0" Content="{x:Static project:Resources.Quality}" ToolTip="{x:Static project:Resources.VideoEncodingQualityTooltip}" HorizontalContentAlignment="Right"/>
-            <Slider x:Name="QualitySlider" Grid.Row="1" Grid.Column="1" 
+            <Slider x:Name="QualitySlider" Grid.Row="1" Grid.Column="1"
                     Value="{Binding Settings, ConverterParameter=VideoQuality|System.Double, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay}"
                     Margin="0,2,0,0" VerticalAlignment="Top" AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" IsSelectionRangeEnabled="True" SelectionStart="20" SelectionEnd="33" Minimum="0" Maximum="51" TickPlacement="BottomRight" SmallChange="1" LargeChange="6" TickFrequency="1" Foreground="{DynamicResource MainDarkBrush}" />
 
             <Label Grid.Row="2" Grid.Column="0" Content="{x:Static project:Resources.EncodingSpeed}" ToolTip="{x:Static project:Resources.VideoEncodingSpeedTooltip}" HorizontalContentAlignment="Right"/>
-            <ComboBox Grid.Row="2" Grid.Column="1" 
+            <ComboBox Grid.Row="2" Grid.Column="1"
                           ItemsSource="{Binding Path=(conversionJobs:ConversionJob_FFMPEG.VideoEncodingSpeeds)}"
                           SelectedValue="{Binding Settings, ConverterParameter=VideoEncodingSpeed|FileConverter.ConversionJobs.VideoEncodingSpeed, Converter={StaticResource ConversionSettingsToEnum}, Mode=TwoWay, TargetNullValue=veryslow}">
                 <ComboBox.ItemTemplate>
@@ -353,7 +352,7 @@
                 </Label>
             </Grid>
 
-            <!--Rotate-->
+            <!-- 旋转 -->
             <Label Content="{x:Static project:Resources.Rotate}" Grid.Row="4" Grid.Column="0" HorizontalAlignment="Right"/>
             <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal">
                 <RadioButton Content="{x:Static project:Resources.ZeroDegreesRotationTitle}" ToolTip="{x:Static project:Resources.ZeroDegreesRotationTooltip}" Margin="0,7,7,7"
@@ -419,7 +418,7 @@
                 </Label>
             </Grid>
 
-            <!--Rotate-->
+            <!-- 旋转 -->
             <Label Content="{x:Static project:Resources.Rotate}" Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right"/>
             <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
                 <RadioButton Content="{x:Static project:Resources.ZeroDegreesRotationTitle}" ToolTip="{x:Static project:Resources.ZeroDegreesRotationTooltip}" Margin="0,7,7,7"
@@ -468,7 +467,7 @@
             <Slider x:Name="QualitySlider" Grid.Row="1" Grid.Column="1" Value="{Binding Settings, ConverterParameter=VideoQuality|System.Double, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay}"
                             Margin="0,2,0,0" VerticalAlignment="Top" AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" IsSelectionRangeEnabled="True" SelectionStart="20" SelectionEnd="40" Minimum="0" Maximum="63" TickPlacement="BottomRight" SmallChange="1" LargeChange="5" TickFrequency="1" Foreground="{DynamicResource MainDarkBrush}" />
 
-            <!-- Scale -->
+            <!-- 缩放 -->
             <Label Content="{x:Static project:Resources.Scale}" Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right"/>
             <Grid Grid.Row="2" Grid.Column="1">
                 <Grid.ColumnDefinitions>
@@ -486,7 +485,7 @@
                 </Label>
             </Grid>
 
-            <!--Rotate-->
+            <!-- 旋转 -->
             <Label Content="{x:Static project:Resources.Rotate}" Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right"/>
             <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
                 <RadioButton Content="{x:Static project:Resources.ZeroDegreesRotationTitle}" ToolTip="{x:Static project:Resources.ZeroDegreesRotationTooltip}" Margin="0,7,7,7"
@@ -522,11 +521,11 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <!--Quality-->
+            <!-- 质量 -->
             <Label Content="{x:Static project:Resources.Quality}" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right"/>
             <Slider Grid.Row="0" Grid.Column="1" x:Name="QualitySlider" Value="{Binding Settings, ConverterParameter=ImageQuality|System.Double, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay, TargetNullValue=25}"
                         Margin="0,5,0,0" VerticalAlignment="Top" AutoToolTipPlacement="TopLeft" IsSnapToTickEnabled="True" IsSelectionRangeEnabled="True" SelectionStart="30" SelectionEnd="100" Minimum="0" Maximum="100" TickPlacement="BottomRight" SmallChange="5" LargeChange="15" TickFrequency="5" Foreground="{DynamicResource MainDarkBrush}" />
-            <!--Scale-->
+            <!-- 缩放 -->
             <Label Content="{x:Static project:Resources.Scale}" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right"/>
             <Grid Grid.Row="1" Grid.Column="1">
                 <Grid.ColumnDefinitions>
@@ -547,10 +546,10 @@
                     </Label.Content>
                 </Label>
                 <CheckBox Grid.Row="1" Grid.Column="0" Margin="0,5,0,5"
-                              Content="{x:Static project:Resources.ClampToLowestPowerOfTwoSize}" 
+                              Content="{x:Static project:Resources.ClampToLowestPowerOfTwoSize}"
                               IsChecked="{Binding Settings, ConverterParameter=ImageClampSizePowerOf2|System.Boolean, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay}" />
             </Grid>
-            <!--Rotate-->
+            <!-- 旋转 -->
             <Label Content="{x:Static project:Resources.Rotate}" Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right"/>
             <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
                 <RadioButton Content="{x:Static project:Resources.ZeroDegreesRotationTitle}" ToolTip="{x:Static project:Resources.ZeroDegreesRotationTooltip}" Margin="0,7,7,7"
@@ -575,7 +574,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <!--Scale-->
+            <!-- 缩放 -->
             <Label Content="{x:Static project:Resources.Scale}" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right"/>
             <Grid Grid.Row="0" Grid.Column="1">
                 <Grid.ColumnDefinitions>
@@ -597,10 +596,10 @@
                 </Label>
 
                 <CheckBox Grid.Row="1" Grid.Column="0" Margin="0,5,0,5"
-                              Content="{x:Static project:Resources.ClampToLowestPowerOfTwoSize}" 
+                              Content="{x:Static project:Resources.ClampToLowestPowerOfTwoSize}"
                               IsChecked="{Binding Settings, ConverterParameter=ImageClampSizePowerOf2|System.Boolean, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay}" />
             </Grid>
-            <!--Rotate-->
+            <!-- 旋转 -->
             <Label Content="{x:Static project:Resources.Rotate}" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right"/>
             <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
                 <RadioButton Content="{x:Static project:Resources.ZeroDegreesRotationTitle}" ToolTip="{x:Static project:Resources.ZeroDegreesRotationTooltip}" Margin="0,7,7,7"
@@ -666,9 +665,9 @@
     <DataTemplate x:Key="CustomSettingsDataTemplate" DataType="{x:Type fileConverter:ConversionPreset}">
         <StackPanel>
             <DockPanel>
-                <CheckBox Margin="0,6,0,0" 
+                <CheckBox Margin="0,6,0,0"
                           IsChecked="{Binding Settings, ConverterParameter=EnableFFMPEGCustomCommand|System.Boolean, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay}" />
-                <Label FontWeight="Bold" 
+                <Label FontWeight="Bold"
                        Content="{x:Static project:Resources.AdvancedMode}" IsEnabled="{Binding Settings, ConverterParameter=EnableFFMPEGCustomCommand|System.Boolean, Converter={StaticResource ConversionSettingsToValueType}, Mode=OneWay}"/>
             </DockPanel>
             <Grid Visibility="{Binding Settings, Converter={StaticResource ConversionSettingsToVisibility}, ConverterParameter=EnableFFMPEGCustomCommand|System.Boolean|Collapsed}">
@@ -682,7 +681,7 @@
                 </Grid.RowDefinitions>
 
                 <Label Content="{x:Static project:Resources.FFMPEGCustomArguments}" Grid.Row="0" Grid.Column="0" HorizontalContentAlignment="Right" />
-                <TextBox Grid.Row="0" Grid.Column="1" Margin="5,2,25,2" TextWrapping="Wrap" Width="Auto" 
+                <TextBox Grid.Row="0" Grid.Column="1" Margin="5,2,25,2" TextWrapping="Wrap" Width="Auto"
                          ToolTip="{x:Static project:Resources.FFMPEGCustomArgumentsTooltip}"
                          Text="{Binding Settings, ConverterParameter=FFMPEGCustomCommand|System.String, Converter={StaticResource ConversionSettingsToValueType}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
                 <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,5,5,0">
@@ -710,4 +709,3 @@
     </Style>
 
 </ResourceDictionary>
-    

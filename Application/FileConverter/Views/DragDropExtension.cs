@@ -8,7 +8,7 @@ namespace FileConverter.Views
     using System.Windows.Media;
 
     /// <summary>
-    /// Provides extended support for drag drop operation
+    /// 提供拖放操作的扩展支持。
     /// </summary>
     public static class DragDropExtension
     {
@@ -38,7 +38,7 @@ namespace FileConverter.Views
         {
             if (dependencyObject == null)
             {
-                Diagnostics.Debug.LogError("Invalid types!");
+                Diagnostics.Debug.LogError("拖放目标的控件类型无效。");
                 return;
             }
 
@@ -51,12 +51,12 @@ namespace FileConverter.Views
                 Subscribe(container);
             }
         }
-        
+
         private static void Subscribe(FrameworkElement container)
         {
             container.PreviewDragOver += OnContainerPreviewDragOver;
         }
-        
+
         private static void OnContainerPreviewDragOver(object sender, DragEventArgs args)
         {
             const double Tolerance = 60;
@@ -76,13 +76,13 @@ namespace FileConverter.Views
 
             double verticalPos = args.GetPosition(container).Y;
 
-            if (verticalPos < Tolerance) // Top of visible list? 
+            if (verticalPos < Tolerance) // 接近可见列表顶部时向上滚动。
             {
-                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - Offset); //Scroll up. 
+                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - Offset); // 向上滚动。
             }
-            else if (verticalPos > container.ActualHeight - Tolerance) // Bottom of visible list? 
+            else if (verticalPos > container.ActualHeight - Tolerance) // 接近可见列表底部时向下滚动。
             {
-                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + Offset); //Scroll down.     
+                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + Offset); // 向下滚动。
             }
         }
 
@@ -90,7 +90,7 @@ namespace FileConverter.Views
         {
             container.PreviewDragOver -= OnContainerPreviewDragOver;
         }
-        
+
         public static T GetFirstVisualChild<T>(DependencyObject dependencyObject) where T : DependencyObject
         {
             if (dependencyObject != null)
@@ -102,7 +102,7 @@ namespace FileConverter.Views
                     {
                         return visualChild;
                     }
-                    
+
                     T childItem = GetFirstVisualChild<T>(child);
                     if (childItem != null)
                     {

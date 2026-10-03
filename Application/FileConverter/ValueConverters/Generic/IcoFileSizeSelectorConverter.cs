@@ -8,9 +8,9 @@ using System.Windows.Media.Imaging;
 namespace FileConverter.ValueConverters.Generic
 {
     /// <summary>
-    /// Forces the selection of a given size from the ICO file/resource. 
-    /// If the exact size does not exists, selects the closest smaller if possible otherwise closest higher resolution.
-    /// If no parameter is given, the smallest frame available will be selected
+    /// 从 ICO 文件或资源中选择指定尺寸的图像。
+    /// 无精确尺寸时优先选择最接近的较小图像，否则选择最小的可用图像。
+    /// 未指定尺寸时选择最小图像。
     /// </summary>
     public class IcoFileSizeSelectorConverter : IValueConverter
     {

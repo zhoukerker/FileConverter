@@ -12,12 +12,12 @@ namespace FileConverter.ValueConverters.Generic
         {
             if (!(value is double))
             {
-                throw new ArgumentException("The value must be a boolean.");
+                throw new ArgumentException("值必须为 double 类型。");
             }
 
             double doubleValue = (double)value;
             
-            return $"{doubleValue:0.#} second{(doubleValue >= 2 ? "s" : string.Empty)}";
+            return $"{doubleValue:0.#} 秒";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

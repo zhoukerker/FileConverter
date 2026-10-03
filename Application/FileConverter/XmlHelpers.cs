@@ -22,7 +22,7 @@ namespace FileConverter
             }
             catch (System.Exception exception)
             {
-                Diagnostics.Debug.LogError("Fail to save asset of type '" + typeof(T) + "'. The following exception was raised:\n " + exception.Message);
+                Diagnostics.Debug.LogError("无法保存类型 '" + typeof(T) + "' 的数据，异常信息：\n " + exception.Message);
             }
         }
     }

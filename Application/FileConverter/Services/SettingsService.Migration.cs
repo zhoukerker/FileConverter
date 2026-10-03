@@ -11,7 +11,7 @@ namespace FileConverter.Services
         {
             int settingsVersion = settings.SerializationVersion;
 
-            // Migrate conversion settings.
+            // 迁移转换设置。
             if (settings.ConversionPresets != null)
             {
                 foreach (ConversionPreset conversionPreset in settings.ConversionPresets)
@@ -25,7 +25,7 @@ namespace FileConverter.Services
         {
             if (settingsVersion <= 2)
             {
-                // Migrate video encoding speed.
+                // 迁移视频编码速度设置。
                 string videoEncodingSpeed = preset.GetSettingsValue(ConversionPreset.ConversionSettingKeys.VideoEncodingSpeed);
                 if (videoEncodingSpeed != null)
                 {
@@ -56,7 +56,7 @@ namespace FileConverter.Services
 
             if (settingsVersion <= 3)
             {
-                // Try to fix corrupted settings (GitHub issue #5).
+                // 尝试修复损坏的设置（GitHub 问题 #5）。
                 string scale = preset.GetSettingsValue(ConversionPreset.ConversionSettingKeys.ImageScale);
                 if (scale != null)
                 {

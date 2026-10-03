@@ -14,7 +14,7 @@ namespace FileConverter.ValueConverters
         {
             if (!(value is ConversionState))
             {
-                throw new ArgumentException("The value must be a conversion state.");
+                throw new ArgumentException("值必须为转换状态。");
             }
 
             ConversionState conversionState = (ConversionState)value;

@@ -1,4 +1,4 @@
-// <copyright file="InputExtensionCategory.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="InputExtensionCategory.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverter.ViewModels
 {
@@ -94,7 +94,7 @@ namespace FileConverter.ViewModels
             {
                 SettingsViewModel settingsViewModel = Ioc.Default.GetRequiredService<SettingsViewModel>();
                 PresetNode selectedPreset = settingsViewModel.SelectedPreset;
-                
+
                 foreach (string extension in this.InputExtensionNames)
                 {
                     if (value == true)
@@ -107,7 +107,7 @@ namespace FileConverter.ViewModels
                     }
                 }
 
-                // Raise property change for extensions.
+                // 通知输入扩展名集合变化。
                 foreach (InputExtension inputExtension in this.InputExtensions)
                 {
                     inputExtension.OnCategoryChanged();

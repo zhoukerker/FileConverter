@@ -22,7 +22,7 @@ namespace FileConverter.Services
         {
             this.pageInfoByType = new Dictionary<string, PageInfo>();
         }
-        
+
         public void Show([NotNull] string pageKey)
         {
             lock (this.pageInfoByType)
@@ -30,7 +30,7 @@ namespace FileConverter.Services
                 PageInfo pageInfo;
                 if (!this.pageInfoByType.TryGetValue(pageKey, out pageInfo))
                 {
-                    throw new ArgumentException($"No such page: {pageKey}.", nameof(pageKey));
+                    throw new ArgumentException($"页面不存在：{pageKey}。", nameof(pageKey));
                 }
 
                 if (pageInfo.Showed)
@@ -45,7 +45,7 @@ namespace FileConverter.Services
                     pageInfo.Instance = Activator.CreateInstance(pageInfo.Type) as Window;
                 }
 
-                Diagnostics.Debug.Log($"Show page {pageKey}.");
+                Diagnostics.Debug.Log($"显示页面 {pageKey}。");
 
                 this.pageInfoByType[pageKey] = pageInfo;
 
@@ -73,7 +73,7 @@ namespace FileConverter.Services
                 PageInfo pageInfo;
                 if (!this.pageInfoByType.TryGetValue(pageKey, out pageInfo))
                 {
-                    throw new ArgumentException($"No such page: {pageKey}.", nameof(pageKey));
+                    throw new ArgumentException($"页面不存在：{pageKey}。", nameof(pageKey));
                 }
 
                 if (!pageInfo.Showed)
@@ -82,8 +82,8 @@ namespace FileConverter.Services
                 }
 
                 pageInfo.Showed = false;
-                
-                Diagnostics.Debug.Log($"Close page {pageKey}.");
+
+                Diagnostics.Debug.Log($"关闭页面 {pageKey}。");
 
                 this.pageInfoByType[pageKey] = pageInfo;
 
@@ -99,7 +99,7 @@ namespace FileConverter.Services
 
                 this.numberOfPageShowed--;
 
-                // If this is the last window.
+                // 处理最后一个窗口关闭的情况。
                 if (this.numberOfPageShowed == 0)
                 {
                     IUpgradeService upgradeService = Ioc.Default.GetRequiredService<IUpgradeService>();
@@ -118,7 +118,7 @@ namespace FileConverter.Services
                         {
                             INavigationService navigationService = Ioc.Default.GetRequiredService<INavigationService>();
                             navigationService.Show(Pages.Upgrade);
-                            Diagnostics.Debug.Log("There is an upgrade in progress, display the upgrade window.");
+                            Diagnostics.Debug.Log("正在更新，显示更新窗口。");
                         }
                     }
                     else
@@ -156,7 +156,7 @@ namespace FileConverter.Services
             {
                 if (keyValuePair.Value.MainWindow && keyValuePair.Value.Showed)
                 {
-                    // There is another main window showed.
+                    // 仍有其他主窗口显示。
                     return;
                 }
 
@@ -166,7 +166,7 @@ namespace FileConverter.Services
                 }
             }
 
-            // Close all windows.
+            // 关闭所有窗口。
             for (int index = 0; index < windowsToClose.Count; index++)
             {
                 this.Close(windowsToClose[index], false);

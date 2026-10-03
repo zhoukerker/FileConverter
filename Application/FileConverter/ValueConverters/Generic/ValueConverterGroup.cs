@@ -21,13 +21,13 @@ namespace FileConverter.ValueConverters.Generic
                 string parameterString = parameter as string;
                 if (parameterString == null)
                 {
-                    throw new ArgumentException("The parameter must be a string value.");
+                    throw new ArgumentException("参数必须为字符串。");
                 }
 
                 parameters = parameterString.Split('|');
                 if (parameters.Length != this.Count)
                 {
-                    throw new ArgumentException("The parameter format must be 'Converter1Parameters|Converter2Parameters|...'.");
+                    throw new ArgumentException("参数格式必须为 'Converter1Parameters|Converter2Parameters|...'。");
                 }
             }
 
@@ -46,13 +46,13 @@ namespace FileConverter.ValueConverters.Generic
             string parameterString = parameter as string;
             if (parameterString == null)
             {
-                throw new ArgumentException("The parameter must be a string value.");
+                throw new ArgumentException("参数必须为字符串。");
             }
 
             string[] parameters = parameterString.Split('|');
             if (parameters.Length != this.Count)
             {
-                throw new ArgumentException("The parameter format must be 'Converter1Parameters|Converter2Parameters|...'.");
+                throw new ArgumentException("参数格式必须为 'Converter1Parameters|Converter2Parameters|...'。");
             }
 
             object result = value;

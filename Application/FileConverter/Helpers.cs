@@ -6,7 +6,6 @@ namespace FileConverter
     using System.Collections.Generic;
     using System.Globalization;
     using System.IO;
-    using System.Reflection;
     using System.Threading;
 
     using FileConverter.ConversionJobs;
@@ -111,29 +110,29 @@ namespace FileConverter
         {
             if (!Application.IsInAdmininstratorPrivileges)
             {
-                Diagnostics.Debug.LogError("File Converter needs administrator privileges to register the shell extension.");
+                Diagnostics.Debug.LogError("File Converter 注册资源管理器扩展需要管理员权限。");
                 return false;
             }
 
             if (!File.Exists(shellExtensionPath))
             {
-                Diagnostics.Debug.LogError($"Shell extension {shellExtensionPath} does not exists.");
+                Diagnostics.Debug.LogError($"资源管理器扩展文件 {shellExtensionPath} 不存在。");
                 return false;
             }
 
-            Diagnostics.Debug.Log($"Install and register shell extension: {shellExtensionPath}.");
+            Diagnostics.Debug.Log($"安装并注册资源管理器扩展：{shellExtensionPath}");
 
             var regasm = new RegAsm();
             var success = regasm.Register64(shellExtensionPath, true);
             if (success)
             {
-                Diagnostics.Debug.Log($"{shellExtensionPath} installed and registered.");
+                Diagnostics.Debug.Log($"资源管理器扩展 {shellExtensionPath} 已安装并注册。");
                 Diagnostics.Debug.Log(regasm.StandardOutput);
                 return true;
             }
             else
             {
-                Diagnostics.Debug.LogError(errorCode: 0x05, $"{shellExtensionPath} failed to register.");
+                Diagnostics.Debug.LogError(errorCode: 0x05, $"资源管理器扩展 {shellExtensionPath} 注册失败。");
                 Diagnostics.Debug.LogError(regasm.StandardError);
                 return false;
             }
@@ -143,29 +142,29 @@ namespace FileConverter
         {
             if (!Application.IsInAdmininstratorPrivileges)
             {
-                Diagnostics.Debug.LogError("File Converter needs administrator privileges to unregister the shell extension.");
+                Diagnostics.Debug.LogError("File Converter 注销资源管理器扩展需要管理员权限。");
                 return false;
             }
 
             if (!File.Exists(shellExtensionPath))
             {
-                Diagnostics.Debug.LogError($"Shell extension {shellExtensionPath} does not exists.");
+                Diagnostics.Debug.LogError($"资源管理器扩展文件 {shellExtensionPath} 不存在。");
                 return false;
             }
 
-            Diagnostics.Debug.Log($"Unregister and uninstall shell extension: {shellExtensionPath}.");
+            Diagnostics.Debug.Log($"注销并卸载资源管理器扩展：{shellExtensionPath}");
 
             var regasm = new RegAsm();
             var success = regasm.Unregister64(shellExtensionPath);
             if (success)
             {
-                Diagnostics.Debug.Log($"{shellExtensionPath} uninstalled.");
+                Diagnostics.Debug.Log($"资源管理器扩展 {shellExtensionPath} 已卸载。");
                 Diagnostics.Debug.Log(regasm.StandardOutput);
                 return true;
             }
             else
             {
-                Diagnostics.Debug.LogError(errorCode: 0x05, $"{shellExtensionPath} failed to uninstall.");
+                Diagnostics.Debug.LogError(errorCode: 0x05, $"资源管理器扩展 {shellExtensionPath} 卸载失败。");
                 Diagnostics.Debug.LogError(regasm.StandardError);
                 return false;
             }
@@ -173,27 +172,15 @@ namespace FileConverter
 
         public static IEnumerable<CultureInfo> GetSupportedCultures()
         {
-            // Get all cultures.
-            CultureInfo[] cultures = CultureInfo.GetCultures(CultureTypes.AllCultures);
-
-            // Find the location where application installed.
-            string exeLocation = Path.GetDirectoryName(Uri.UnescapeDataString(new UriBuilder(Assembly.GetExecutingAssembly().CodeBase).Path));
-
-            // Return all culture for which satellite folder found with culture code.
-            foreach (CultureInfo cultureInfo in cultures)
-            {
-                if (!string.IsNullOrEmpty(cultureInfo.Name) && Directory.Exists(Path.Combine(exeLocation, "Languages", cultureInfo.Name)))
-                {
-                    yield return cultureInfo;
-                }
-            }
+            // 保留兼容接口，简体中文资源直接嵌入主程序集。
+            yield return CultureInfo.GetCultureInfo("zh-CN");
         }
 
         public static bool IsOutputTypeCompatibleWithCategory(OutputType outputType, string category)
         {
             if (category == InputCategoryNames.Misc)
             {
-                // Misc category contains unsorted input extensions, so we consider that they are compatible to be tolerant.
+                // 杂项包含未分类的输入扩展名，允许其与输出格式兼容。
                 return true;
             }
 
@@ -266,12 +253,12 @@ namespace FileConverter
         }
 
         /// <summary>
-        /// Check whether Microsoft office is available or not.
+        /// 检查 Microsoft Office 是否可用。
         /// </summary>
-        /// <param name="application">The office application name.</param>
-        /// <returns>Returns true if Office is installed on the computer.</returns>
-        /// source: http://stackoverflow.com/questions/3266675/how-to-detect-installed-version-of-ms-office/3267832#3267832
-        /// source: http://www.codeproject.com/Articles/26520/Getting-Office-s-Version
+        /// <param name="application">Office 应用名称。</param>
+        /// <returns>已安装对应 Office 应用时返回 true。</returns>
+        /// 参考来源： http://stackoverflow.com/questions/3266675/how-to-detect-installed-version-of-ms-office/3267832#3267832
+        /// 参考来源： http://www.codeproject.com/Articles/26520/Getting-Office-s-Version
         public static bool IsMicrosoftOfficeApplicationAvailable(ConversionJobs.ConversionJob_Office.ApplicationName application)
         {
             string registryKeyPattern = @"Software\Microsoft\Windows\CurrentVersion\App Paths\";
@@ -293,22 +280,19 @@ namespace FileConverter
                     return false;
             }
 
-            // Looks inside CURRENT_USER.
-            RegistryKey winwordKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(registryKeyPattern, false);
-            if (winwordKey != null)
+            // 查询后及时释放注册表句柄。
+            using (RegistryKey winwordKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(registryKeyPattern, false))
             {
-                string winwordPath = winwordKey.GetValue(string.Empty).ToString();
+                string winwordPath = winwordKey?.GetValue(string.Empty) as string;
                 if (!string.IsNullOrEmpty(winwordPath))
                 {
                     return true;
                 }
             }
 
-            // If not found, looks inside LOCAL_MACHINE.
-            winwordKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(registryKeyPattern, false);
-            if (winwordKey != null)
+            using (RegistryKey winwordKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(registryKeyPattern, false))
             {
-                string winwordPath = winwordKey.GetValue(string.Empty).ToString();
+                string winwordPath = winwordKey?.GetValue(string.Empty) as string;
                 if (!string.IsNullOrEmpty(winwordPath))
                 {
                     return true;

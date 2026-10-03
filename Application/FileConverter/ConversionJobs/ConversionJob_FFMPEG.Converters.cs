@@ -9,32 +9,19 @@ namespace FileConverter.ConversionJobs
 
     public partial class ConversionJob_FFMPEG
     {
-        private static string Encapsulate(string optionName, string args)
-        {
-            if (string.IsNullOrEmpty(args))
-            {
-                return string.Empty;
-            }
-
-            return $"{optionName} \"{args}\"";
-        }
+        private static string Encapsulate(string optionName, string args) =>
+            string.IsNullOrEmpty(args) ? string.Empty : $"{optionName} \"{args}\"";
 
         /// <summary>
-        /// Compute the argument needed to change the number of channels in an audio file.
+        /// 生成调整音频声道数所需的参数。
         /// </summary>
-        /// <param name="conversionPreset">The conversion preset</param>
-        /// <returns>The argument string.</returns>
+        /// <param name="conversionPreset">转换预设。</param>
+        /// <returns>声道设置对应的参数字符串。</returns>
         /// https://trac.ffmpeg.org/wiki/AudioChannelManipulation
         private static string ComputeAudioChannelArgs(ConversionPreset conversionPreset)
         {
-            string channelArgs = string.Empty;
             int channelCount = conversionPreset.GetSettingsValue<int>(ConversionPreset.ConversionSettingKeys.AudioChannelCount);
-            if (channelCount > 0)
-            {
-                channelArgs = $"-ac {channelCount}";
-            }
-
-            return channelArgs;
+            return channelCount > 0 ? $"-ac {channelCount}" : string.Empty;
         }
 
         private static string ComputeTransformArgs(ConversionPreset conversionPreset, Helpers.HardwareAccelerationMode hwAccel = Helpers.HardwareAccelerationMode.Off)
@@ -44,7 +31,7 @@ namespace FileConverter.ConversionJobs
 
             if (conversionPreset.OutputType == OutputType.Mkv || conversionPreset.OutputType == OutputType.Mp4)
             {
-                // This presets use h264 codec, the size of the video need to be divisible by 2.
+                // 这些预设使用 H.264，视频宽高必须能被 2 整除。
                 switch (hwAccel)
                 {
                     case Helpers.HardwareAccelerationMode.CUDA:
@@ -64,11 +51,11 @@ namespace FileConverter.ConversionJobs
             string rotationArgs = string.Empty;
             if (Math.Abs(rotationAngleInDegrees - 0f) >= 0.05f)
             {
-                // Transpose:
-                // 0: 90 CounterClockwise and vertical flip
-                // 1: 90 Clockwise
-                // 2: 90 CounterClockwise 
-                // 3: 90 Clockwise and vertical flip
+                // 转置参数：
+                // 0：逆时针旋转 90 度并垂直翻转
+                // 1：顺时针旋转 90 度
+                // 2：逆时针旋转 90 度
+                // 3：顺时针旋转 90 度并垂直翻转
                 if (Math.Abs(rotationAngleInDegrees - 90f) <= 0.05f)
                 {
                     rotationArgs = "transpose=2";
@@ -83,45 +70,35 @@ namespace FileConverter.ConversionJobs
                 }
                 else
                 {
-                    Diagnostics.Debug.LogError($"Unsupported rotation: {rotationAngleInDegrees}°");
+                    Diagnostics.Debug.LogError($"不支持的旋转角度：{rotationAngleInDegrees}°");
                 }
             }
 
-            // Build vf args content (scale=..., transpose=...)
-            string transformArgs = string.Empty;
-            if (!string.IsNullOrEmpty(scaleArgs))
-            {
-                transformArgs += scaleArgs;
-            }
-
+            // 组合视频滤镜参数（scale=...、transpose=...）。
+            string transformArgs = scaleArgs;
             if (!string.IsNullOrEmpty(rotationArgs))
             {
-                if (!string.IsNullOrEmpty(transformArgs))
-                {
-                    transformArgs += ",";
-                }
-
-                transformArgs += rotationArgs;
+                transformArgs = string.IsNullOrEmpty(scaleArgs) ? rotationArgs : scaleArgs + "," + rotationArgs;
             }
 
             if (hwAccel != Helpers.HardwareAccelerationMode.CUDA && (conversionPreset.OutputType == OutputType.Mkv || conversionPreset.OutputType == OutputType.Mp4))
             {
-                // For H.264 in MP4/MKV, force yuv420p for broad player compatibility:
+                // MP4/MKV 的 H.264 输出统一使用 yuv420p，提高播放器兼容性：
                 // http://trac.ffmpeg.org/wiki/Encode/H.264#Encodingfordumbplayers
-                // - Software encoding and non-CUDA hardware (e.g., AMF) come through this path.
-                // - CUDA is excluded here because the scale_cuda path above already sets format=yuv420p.
+                // 软件编码以及 AMF 等非 CUDA 硬件编码使用此路径。
+                // CUDA 的 scale_cuda 路径已经设置 format=yuv420p，此处无需重复。
                 transformArgs += (transformArgs.Length > 0 ? "," : string.Empty) + "format=yuv420p";
-                //// TODO: maybe there should be an option for this on the settings?
+                // TODO：可考虑为像素格式提供设置项。
             }
 
             return transformArgs;
         }
 
         /// <summary>
-        /// Convert bitrate in <c>mp3</c> encoder quality index.
+        /// 将码率转换为 <c>mp3</c> 编码器的质量索引。
         /// </summary>
-        /// <param name="bitrate">Wanted bitrate value.</param>
-        /// <returns>The <c>mp3</c> encoder quality index associated to the given bitrate value.</returns>
+        /// <param name="bitrate">目标码率。</param>
+        /// <returns>指定码率对应的 <c>mp3</c> 编码器质量索引。</returns>
         /// https://trac.ffmpeg.org/wiki/Encode/MP3
         private int MP3VBRBitrateToQualityIndex(int bitrate)
         {
@@ -158,14 +135,14 @@ namespace FileConverter.ConversionJobs
                     return 9;
             }
 
-            throw new Exception("Unknown VBR bitrate.");
+            throw new Exception("未知的 VBR 码率。");
         }
 
         /// <summary>
-        /// Convert bitrate in <c>vorbis</c> encoder quality index.
+        /// 将码率转换为 <c>vorbis</c> 编码器的质量索引。
         /// </summary>
-        /// <param name="bitrate">Wanted bitrate value.</param>
-        /// <returns>The <c>vorbis</c> encoder quality index associated to the given bitrate value.</returns>
+        /// <param name="bitrate">目标码率。</param>
+        /// <returns>指定码率对应的 <c>vorbis</c> 编码器质量索引。</returns>
         /// http://wiki.hydrogenaud.io/index.php?title=Recommended_Ogg_Vorbis
         private int OGGVBRBitrateToQualityIndex(int bitrate)
         {
@@ -211,26 +188,23 @@ namespace FileConverter.ConversionJobs
                     return -2;
             }
 
-            throw new Exception("Unknown Ogg VBR bitrate.");
+            throw new Exception("未知的 Ogg VBR 码率。");
         }
 
         /// <summary>
-        /// Convert video quality index to lib <c>theora</c> video quality level.
+        /// 将视频质量索引转换为 <c>theora</c> 编码器的质量等级。
         /// </summary>
-        /// <param name="quality">The quality index.</param>
-        /// <returns>Returns the video quality index.</returns>
-        /// The range of the video quality level is 0-10: where 10 is the highest quality/largest filesize, 0 being the lowest quality/smallest filesize.
+        /// <param name="quality">质量索引。</param>
+        /// <returns>视频编码质量索引。</returns>
+        /// 视频质量等级为 0 到 10；10 的质量和文件体积最高，0 最低。
         /// https://trac.ffmpeg.org/wiki/TheoraVorbisEncodingGuide
-        private int OGVTheoraQualityToQualityIndex(int quality)
-        {
-            return quality;
-        }
+        private int OGVTheoraQualityToQualityIndex(int quality) => quality;
 
         /// <summary>
-        /// Convert encoding mode setting to <c>ffmpeg</c> argument option.
+        /// 将音频编码模式转换为 <c>ffmpeg</c> 编解码器参数。
         /// </summary>
-        /// <param name="encoding">The encoding mode setting.</param>
-        /// <returns>Returns the <c>ffmpeg</c> argument corresponding to the given encoding mode.</returns>
+        /// <param name="encoding">音频编码模式。</param>
+        /// <returns>指定编码模式对应的 <c>ffmpeg</c> 参数。</returns>
         /// https://trac.ffmpeg.org/wiki/audio%20types
         private string WAVEncodingToCodecArgument(EncodingMode encoding)
         {
@@ -249,51 +223,42 @@ namespace FileConverter.ConversionJobs
                     return "pcm_s32le";
             }
 
-            throw new Exception("Unknown Wav encoding.");
+            throw new Exception("未知的 WAV 编码模式。");
         }
 
         /// <summary>
-        /// Convert video quality index to MPEG4 video quality level.
+        /// 将视频质量索引转换为 MPEG4 的量化等级。
         /// </summary>
-        /// <param name="quality">The quality index.</param>
-        /// <returns>Returns the H264 constant rate factor.</returns>
-        /// The range of the video quality level is 1-31: where 1 is the highest quality/largest filesize, 31 being the lowest quality/smallest filesize.
+        /// <param name="quality">质量索引。</param>
+        /// <returns>MPEG4 编码器使用的量化等级。</returns>
+        /// 视频量化等级为 1 到 31；1 的质量和文件体积最高，31 最低。
         /// https://trac.ffmpeg.org/wiki/Encode/MPEG-4
-        private int MPEG4QualityToQualityIndex(int quality)
-        {
-            return 31 - quality;
-        }
+        private int MPEG4QualityToQualityIndex(int quality) => 31 - quality;
 
         /// <summary>
-        /// Convert video quality index to H264 constant rate factor.
+        /// 将视频质量索引转换为 H.264 的恒定质量参数。
         /// </summary>
-        /// <param name="quality">The quality index.</param>
-        /// <returns>Returns the H264 constant rate factor.</returns>
-        /// The range of the quantizer scale is 0-51: where 0 is lossless, 23 is default, and 51 is worst possible. 
-        /// A lower value is a higher quality and a subjectively sane range is 18-28. 
+        /// <param name="quality">质量索引。</param>
+        /// <returns>编码器使用的恒定质量参数。</returns>
+        /// 量化范围为 0 到 51；0 表示无损，23 为默认值，51 的质量最低。
+        /// 数值越小质量越高，通常使用 18 到 28。
         /// https://trac.ffmpeg.org/wiki/Encode/H.264
-        private int H264QualityToCRF(int quality)
-        {
-            return 51 - quality;
-        }
+        private int H264QualityToCRF(int quality) => 51 - quality;
 
         /// <summary>
-        /// Convert image quality index to JPG quality index.
+        /// 将图片质量索引转换为 JPG 的量化等级。
         /// </summary>
-        /// <param name="quality">The quality index.</param>
-        /// <returns>Returns the JPG quality index.</returns>
-        /// The range of the quantizer scale is 1-31: where 1 is better quality, and 31 is worst possible. 
+        /// <param name="quality">质量索引。</param>
+        /// <returns>JPG 编码器使用的质量索引。</returns>
+        /// 量化范围为 1 到 31；1 的质量最高，31 最低。
         /// http://superuser.com/questions/318845/improve-quality-of-ffmpeg-created-jpgs
-        private int JPGQualityToQualityIndex(int quality)
-        {
-            return 31 - quality;
-        }
+        private int JPGQualityToQualityIndex(int quality) => 31 - quality;
 
         /// <summary>
-        /// Convert video encoding speed to H264 preset.
+        /// 将视频编码速度转换为 H.264 预设。
         /// </summary>
-        /// <param name="encodingSpeed">The encoding speed.</param>
-        /// <returns>The H264 preset.</returns>
+        /// <param name="encodingSpeed">视频编码速度。</param>
+        /// <returns>H.264 编码器预设名称。</returns>
         private string H264EncodingSpeedToPreset(VideoEncodingSpeed encodingSpeed)
         {
             switch (encodingSpeed)
@@ -326,14 +291,14 @@ namespace FileConverter.ConversionJobs
                     return "veryslow";
             }
 
-            throw new ArgumentOutOfRangeException(nameof(encodingSpeed), encodingSpeed, "Unknown H264 encoding speed.");
+            throw new ArgumentOutOfRangeException(nameof(encodingSpeed), encodingSpeed, "未知的 H.264 编码速度。");
         }
 
         /// <summary>
-        /// Convert video encoding speed to NVENC preset.
+        /// 将视频编码速度转换为 NVENC 预设。
         /// </summary>
-        /// <param name="encodingSpeed">The encoding speed.</param>
-        /// <returns>The NVENC preset.</returns>
+        /// <param name="encodingSpeed">视频编码速度。</param>
+        /// <returns>NVENC 编码器预设名称。</returns>
         private string H264EncodingSpeedToNVENCPreset(VideoEncodingSpeed encodingSpeed)
         {
             switch (encodingSpeed)
@@ -362,14 +327,14 @@ namespace FileConverter.ConversionJobs
                     return "p7";
             }
 
-            throw new ArgumentOutOfRangeException(nameof(encodingSpeed), encodingSpeed, "Unknown H264 encoding speed.");
+            throw new ArgumentOutOfRangeException(nameof(encodingSpeed), encodingSpeed, "未知的 H.264 编码速度。");
         }
 
         /// <summary>
-        /// Convert video encoding speed to AMF quality mode.
+        /// 将视频编码速度转换为 AMF 质量模式。
         /// </summary>
-        /// <param name="encodingSpeed">The encoding speed.</param>
-        /// <returns>The AMF quality mode.</returns>
+        /// <param name="encodingSpeed">视频编码速度。</param>
+        /// <returns>AMF 编码器质量模式。</returns>
         private string H264EncodingSpeedToAMFQuality(VideoEncodingSpeed encodingSpeed)
         {
             switch (encodingSpeed)
@@ -390,15 +355,15 @@ namespace FileConverter.ConversionJobs
                     return "quality";
             }
 
-            throw new ArgumentOutOfRangeException(nameof(encodingSpeed), encodingSpeed, "Unknown H264 encoding speed.");
+            throw new ArgumentOutOfRangeException(nameof(encodingSpeed), encodingSpeed, "未知的 H.264 编码速度。");
         }
 
         /// <summary>
-        /// Convert bitrate in <c>aac</c> encoder quality index.
+        /// 将码率转换为 <c>aac</c> 编码器的质量索引。
         /// </summary>
-        /// <param name="bitrate">Wanted bitrate value.</param>
-        /// <returns>The <c>aac</c> encoder quality index associated to the given bitrate value.</returns>
-        /// See the file Resources/FFMPEG retro engineering.ods for details.
+        /// <param name="bitrate">目标码率。</param>
+        /// <returns>指定码率对应的 <c>aac</c> 编码器质量索引。</returns>
+        /// 详细映射见 Resources/FFMPEG retro engineering.ods。
         private string AACBitrateToQualityIndex(int bitrate)
         {
             switch (bitrate)
@@ -446,19 +411,16 @@ namespace FileConverter.ConversionJobs
                     return "0.1";
             }
 
-            throw new Exception("Unknown VBR bitrate.");
+            throw new Exception("未知的 VBR 码率。");
         }
 
         /// <summary>
-        /// Convert video quality index to H264 constant rate factor.
+        /// 将视频质量索引转换为 VP9 的恒定质量参数。
         /// </summary>
-        /// <param name="quality">The quality index.</param>
-        /// <returns>Returns the H264 constant rate factor.</returns>
-        /// The range of the quantizer scale is 0-63: lower values mean better quality.
+        /// <param name="quality">质量索引。</param>
+        /// <returns>编码器使用的恒定质量参数。</returns>
+        /// 量化范围为 0 到 63；数值越小质量越高。
         /// https://trac.ffmpeg.org/wiki/Encode/VP9
-        private int WebmQualityToCRF(int quality)
-        {
-            return 63 - quality;
-        }
+        private int WebmQualityToCRF(int quality) => 63 - quality;
     }
 }

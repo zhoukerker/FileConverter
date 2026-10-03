@@ -11,12 +11,11 @@ namespace FileConverter
 
     public static class PathHelpers
     {
-        private static Regex driveLetterRegex = new Regex(@"[a-zA-Z]:\\");
-        private static Regex cdaTrackNumberRegex = new Regex(@"[a-zA-Z]:\\Track([0-9]+)\.cda");
-        private static Regex pathRegex = new Regex(@"^(?:\\\\[^\\/:*?""<>|\r\n]+\\|[a-zA-Z]:\\)(?:[^\\/:*?""<>|\r\n]+\\)*[^\.\\/:*?""<>|\r\n][^\\/:*?""<>|\r\n]*$");
-        private static Regex filenameRegex = new Regex(@"[^\\]*", RegexOptions.RightToLeft);
-        private static Regex directoryRegex = new Regex(@"^(?<drive>\\\\[^\\/:*?""""<>|\r\n]+\\|[A-Za-z]:\\)(?:(?<folders>[^\\]*)\\)*");
-        private static Regex dateRegex = new Regex(@"\(d:(?<format>[^)]*)\)");
+        private static readonly Regex driveLetterRegex = new Regex(@"[a-zA-Z]:\\");
+        private static readonly Regex cdaTrackNumberRegex = new Regex(@"[a-zA-Z]:\\Track([0-9]+)\.cda");
+        private static readonly Regex pathRegex = new Regex(@"^(?:\\\\[^\\/:*?""<>|\r\n]+\\|[a-zA-Z]:\\)(?:[^\\/:*?""<>|\r\n]+\\)*[^\.\\/:*?""<>|\r\n][^\\/:*?""<>|\r\n]*$");
+        private static readonly Regex directoryRegex = new Regex(@"^(?<drive>\\\\[^\\/:*?""""<>|\r\n]+\\|[A-Za-z]:\\)(?:(?<folders>[^\\]*)\\)*");
+        private static readonly Regex dateRegex = new Regex(@"\(d:(?<format>[^)]*)\)");
 
         public static bool IsPathDriveLetterValid(string path)
         {
@@ -64,31 +63,29 @@ namespace FileConverter
 
         public static string GetFileName(string path)
         {
-            MatchCollection matchCollection = PathHelpers.filenameRegex.Matches(path);
-            Match filenameMatch = matchCollection.Count > 0 ? matchCollection[0] : null;
-            return filenameMatch?.Groups[0].Value;
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+
+            return path.Substring(path.LastIndexOf('\\') + 1);
         }
 
         public static string GetDrive(string path)
         {
-            MatchCollection matchCollection = PathHelpers.directoryRegex.Matches(path);
-            Match match = matchCollection.Count > 0 ? matchCollection[0] : null;
-
-            Group matchGroup = match?.Groups["drive"];
-            return matchGroup?.Captures[0].Value;
+            Match match = PathHelpers.directoryRegex.Match(path);
+            return match.Success ? match.Groups["drive"].Value : null;
         }
 
         public static IEnumerable<string> GetDirectories(string path)
         {
-            MatchCollection matchCollection = PathHelpers.directoryRegex.Matches(path);
-            Match match = matchCollection.Count > 0 ? matchCollection[0] : null;
-
-            Group matchGroup = match?.Groups["folders"];
-            if (matchGroup == null)
+            Match match = PathHelpers.directoryRegex.Match(path);
+            if (!match.Success)
             {
                 yield break;
             }
 
+            Group matchGroup = match.Groups["folders"];
             for (int index = 0; index < matchGroup.Captures.Count; index++)
             {
                 yield return matchGroup.Captures[index].Value;
@@ -112,7 +109,7 @@ namespace FileConverter
 
         public static bool CreateFolders(string filePath)
         {
-            // Create output folders that doesn't already exist.
+            // 创建尚不存在的输出目录。
             StringBuilder path = new StringBuilder(filePath.Length);
             string drive = PathHelpers.GetDrive(filePath);
             path.Append(drive);
@@ -130,7 +127,7 @@ namespace FileConverter
                     }
                     catch (Exception)
                     {
-                        Debug.Log($"Can't create directories for path {filePath}");
+                        Debug.Log($"无法为路径创建目录：{filePath}");
                         return false;
                     }
                 }
@@ -143,7 +140,7 @@ namespace FileConverter
         {
             if (string.IsNullOrEmpty(inputFilePath))
             {
-                return "Invalid input file path (argument 0).";
+                return "输入文件路径无效（参数 0）。";
             }
 
             string inputExtension = System.IO.Path.GetExtension(inputFilePath).Substring(1);
@@ -152,7 +149,7 @@ namespace FileConverter
 
             if (string.IsNullOrEmpty(outputFilePathTemplate))
             {
-                // Default output path.
+                // 未指定模板时使用默认输出路径。
                 return inputPathWithoutExtension + "." + outputExtension;
             }
 
@@ -165,7 +162,7 @@ namespace FileConverter
 
             string[] directories = parentDirectory.Substring(0, parentDirectory.Length - 1).Split(System.IO.Path.DirectorySeparatorChar);
 
-            // Generate output path from template.
+            // 按模板生成输出路径。
             string outputPath = outputFilePathTemplate;
 
             outputPath = outputPath.Replace("(path)", parentDirectory);

@@ -58,7 +58,7 @@ namespace FileConverter
 
                     if (this.registryEntries.ContainsKey(entry.Key))
                     {
-                        Diagnostics.Debug.Log($"Ignore registry entry {entry.Key}.");
+                        Diagnostics.Debug.Log($"忽略配置记录：{entry.Key}。");
                         continue;
                     }
 
@@ -106,7 +106,7 @@ namespace FileConverter
             }
             catch (Exception exception)
             {
-                Diagnostics.Debug.LogError($"Can't convert registry value: {exception.Message}.");
+                Diagnostics.Debug.LogError($"无法转换配置记录的值：{exception.Message}。");
             }
 
             return defaultValue;
@@ -128,13 +128,13 @@ namespace FileConverter
             }
             catch (Exception exception)
             {
-                Diagnostics.Debug.LogError($"Can't convert registry value: {exception.Message}.");
+                Diagnostics.Debug.LogError($"无法转换配置记录的值：{exception.Message}。");
             }
         }
 
         public void Dispose()
         {
-            // SAVE
+            // 保存配置记录。
             string registryFilePath = Registry.GetUserRegistryFilePath;
 
             try
@@ -143,7 +143,7 @@ namespace FileConverter
             }
             catch (Exception exception)
             {
-                Diagnostics.Debug.LogError($"Fail to save registry. {exception.Message}");
+                Diagnostics.Debug.LogError($"保存配置记录失败：{exception.Message}");
             }
         }
         
@@ -164,11 +164,11 @@ namespace FileConverter
             catch (Exception exception)
             {
                 Registry.instance = new Registry();
-                Diagnostics.Debug.LogError($"Fail to load registry. {exception.Message}");
+                Diagnostics.Debug.LogError($"加载配置记录失败：{exception.Message}");
                 while (exception.InnerException != null)
                 {
                     exception = exception.InnerException;
-                    Diagnostics.Debug.LogError($"Inner exception: {exception.Message}");
+                    Diagnostics.Debug.LogError($"内部异常：{exception.Message}");
                 }
             }
         }

@@ -22,7 +22,7 @@ namespace FileConverter.ValueConverters.Generic
         {
             if (!(value is bool))
             {
-                throw new ArgumentException("value");
+                throw new ArgumentException("值必须为布尔值。");
             }
 
             bool equals = (bool)value;

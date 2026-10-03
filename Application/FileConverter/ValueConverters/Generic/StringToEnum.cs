@@ -13,20 +13,20 @@ namespace FileConverter.ValueConverters.Generic
             string stringValue = value as string;
             if (value == null)
             {
-                // TODO default value ?
+                // 待办：确认是否需要枚举默认值。
                 return null;
             }
 
             string typeName = parameter as string;
             if (typeName == null)
             {
-                throw new ArgumentNullException(nameof(parameter), "The parameter must contains the enum type.");
+                throw new ArgumentNullException(nameof(parameter), "参数必须包含枚举类型名称。");
             }
 
             Type enumType = Type.GetType(typeName);
             if (enumType == null)
             {
-                throw new Exception("Invalid enum type " + typeName + ".");
+                throw new Exception("枚举类型无效：" + typeName + "。");
             }
 
             return Enum.Parse(enumType, stringValue);

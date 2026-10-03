@@ -12,7 +12,7 @@ namespace FileConverter.ValueConverters.Generic
         {
             if (value != null && !(value is bool))
             {
-                throw new ArgumentException("The value must be a boolean.");
+                throw new ArgumentException("值必须为布尔值。");
             }
 
             bool booleanValue = (bool?) value ?? false;
@@ -24,7 +24,7 @@ namespace FileConverter.ValueConverters.Generic
             if (!string.IsNullOrEmpty(stringParameter))
             {
                 string[] results = stringParameter.Split(';');
-                Diagnostics.Debug.Assert(results.Length <= 2, "results.Length <= 2");
+                Diagnostics.Debug.Assert(results.Length <= 2, "可见性转换参数不得超过 2 个（results.Length <= 2）。");
 
                 if (results.Length >= 1)
                 {

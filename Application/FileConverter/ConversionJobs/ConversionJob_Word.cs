@@ -3,8 +3,6 @@
 namespace FileConverter.ConversionJobs
 {
     using System;
-    using System.IO;
-    using System.Threading.Tasks;
 
     using FileConverter.Diagnostics;
 
@@ -15,10 +13,7 @@ namespace FileConverter.ConversionJobs
         private Word.Document document;
         private Word.Application application;
 
-        private string intermediateFilePath = string.Empty;
-        private ConversionJob pdf2ImageConversionJob = null;
-
-        public ConversionJob_Word() : base()
+        public ConversionJob_Word()
         {
         }
 
@@ -28,126 +23,23 @@ namespace FileConverter.ConversionJobs
 
         protected override ApplicationName Application => ApplicationName.Word;
 
-        protected override bool IsCancelable() => false;
+        protected override int GetDocumentPageCount() => this.document.ComputeStatistics(Word.Enums.WdStatistic.wdStatisticPages);
 
-        protected override int GetOutputFilesCount()
+        protected override void PrepareDocumentForExport() => this.document.Activate();
+
+        protected override void ExportDocumentAsPdf(string outputFilePath)
         {
-            if (this.ConversionPreset.OutputType == OutputType.Pdf)
-            {
-                return 1;
-            }
-
-            if (!this.TryLoadDocumentIfNecessary())
-            {
-                return 1;
-            }
-
-            int pagesCount = this.document.ComputeStatistics(Word.Enums.WdStatistic.wdStatisticPages);
-
-            return pagesCount;
-        }
-
-        protected override void Initialize()
-        {
-            base.Initialize();
-
-            if (this.State == ConversionState.Failed)
-            {
-                return;
-            }
-
-            if (this.ConversionPreset == null)
-            {
-                throw new System.Exception("The conversion preset must be valid.");
-            }
-
-            // Initialize converters.
-            if (this.ConversionPreset.OutputType == OutputType.Pdf)
-            {
-                this.intermediateFilePath = this.OutputFilePath;
-            }
-            else
-            {
-                // Generate intermediate file path.
-                string fileName = Path.GetFileNameWithoutExtension(this.InputFilePath);
-                string tempPath = Path.GetTempPath();
-                this.intermediateFilePath = PathHelpers.GenerateUniquePath(tempPath + fileName + ".pdf");
-
-                ConversionPreset intermediatePreset = new ConversionPreset("Pdf to image", this.ConversionPreset, "pdf");
-                this.pdf2ImageConversionJob = ConversionJobFactory.Create(intermediatePreset, this.intermediateFilePath);
-                this.pdf2ImageConversionJob.PrepareConversion(this.OutputFilePaths);
-            }
-        }
-
-        protected override void Convert()
-        {
-            if (this.ConversionPreset == null)
-            {
-                throw new System.Exception("The conversion preset must be valid.");
-            }
-
-            this.UserState = Properties.Resources.ConversionStateReadDocument;
-
-            if (!this.TryLoadDocumentIfNecessary())
-            {
-                this.ConversionFailed(Properties.Resources.ErrorUnableToUseMicrosoftOffice);
-                return;
-            }
-
-            // Make this document the active document.
-            this.document.Activate();
-
-            this.UserState = Properties.Resources.ConversionStateConversion;
-
-            Debug.Log("Convert word document to pdf.");
-            // this.document.ExportAsFixedFormat(this.intermediateFilePath, Word.WdExportFormat.wdExportFormatPDF);
-            this.document.ExportAsFixedFormat(this.intermediateFilePath, 
-                Word.Enums.WdExportFormat.wdExportFormatPDF, 
-                false, 
-                Word.Enums.WdExportOptimizeFor.wdExportOptimizeForPrint, 
-                Word.Enums.WdExportRange.wdExportAllDocument, 
-                1, 1, 
-                Word.Enums.WdExportItem.wdExportDocumentContent, 
-                true, 
-                true, 
-                Word.Enums.WdExportCreateBookmarks.wdExportCreateHeadingBookmarks, 
+            this.document.ExportAsFixedFormat(outputFilePath,
+                Word.Enums.WdExportFormat.wdExportFormatPDF,
+                false,
+                Word.Enums.WdExportOptimizeFor.wdExportOptimizeForPrint,
+                Word.Enums.WdExportRange.wdExportAllDocument,
+                1, 1,
+                Word.Enums.WdExportItem.wdExportDocumentContent,
+                true,
+                true,
+                Word.Enums.WdExportCreateBookmarks.wdExportCreateHeadingBookmarks,
                 true);
-
-            Debug.Log($"Close word document '{this.InputFilePath}'.");
-            this.document.Close(Word.Enums.WdSaveOptions.wdDoNotSaveChanges);
-            this.document = null;
-
-            this.ReleaseOfficeApplicationInstanceIfNeeded();
-            
-            if (this.pdf2ImageConversionJob != null)
-            {
-                if (!System.IO.File.Exists(this.intermediateFilePath))
-                {
-                    this.ConversionFailed(Properties.Resources.ErrorCantFindOutputFiles);
-                    return;
-                }
-
-                Task updateProgress = this.UpdateProgress();
-
-                Debug.Log("Convert pdf to images.");
-
-                this.pdf2ImageConversionJob.StartConversion();
-
-                if (this.pdf2ImageConversionJob.State != ConversionState.Done)
-                {
-                    this.ConversionFailed(this.pdf2ImageConversionJob.ErrorMessage);
-                    return;
-                }
-
-                if (!string.IsNullOrEmpty(this.intermediateFilePath))
-                {
-                    Debug.Log($"Delete intermediate file {this.intermediateFilePath}.");
-
-                    File.Delete(this.intermediateFilePath);
-                }
-
-                updateProgress.Wait();
-            }
         }
 
         protected override void InitializeOfficeApplicationInstanceIfNecessary()
@@ -157,47 +49,21 @@ namespace FileConverter.ConversionJobs
                 return;
             }
 
-            // Initialize word application.
-            Debug.Log("Instantiate word application via interop.");
+            // 初始化 Word 应用。
+            Debug.Log("创建 Word 应用实例。");
             this.application = new Word.Application
             {
                 Visible = false
             };
         }
 
-        protected override void ReleaseOfficeApplicationInstanceIfNeeded()
-        {
-            if (this.application == null)
-            {
-                return;
-            }
+        protected override void ReleaseOfficeApplicationInstanceIfNeeded() =>
+            this.ReleaseOfficeApplication(ref this.application, application => application.Quit());
 
-            Diagnostics.Debug.Log("Quit word application via interop.");
-            this.application.Quit();
-            this.application = null;
-        }
+        protected override void CloseDocument() =>
+            CloseOfficeDocument(ref this.document, document => document.Close(Word.Enums.WdSaveOptions.wdDoNotSaveChanges));
 
-        private async Task UpdateProgress()
-        {
-            while (this.pdf2ImageConversionJob.State != ConversionState.Done &&
-                   this.pdf2ImageConversionJob.State != ConversionState.Failed)
-            {
-                if (this.pdf2ImageConversionJob != null && this.pdf2ImageConversionJob.State == ConversionState.InProgress)
-                {
-                    this.Progress = this.pdf2ImageConversionJob.Progress;
-                }
-
-                if (this.pdf2ImageConversionJob != null && this.pdf2ImageConversionJob.State == ConversionState.InProgress)
-                {
-                    this.Progress = this.pdf2ImageConversionJob.Progress;
-                    this.UserState = this.pdf2ImageConversionJob.UserState;
-                }
-
-                await Task.Delay(40);
-            }
-        }
-
-        private bool TryLoadDocumentIfNecessary()
+        protected override bool TryLoadDocumentIfNecessary()
         {
             try
             {
@@ -206,7 +72,7 @@ namespace FileConverter.ConversionJobs
             catch (Exception exception)
             {
                 Debug.Log(exception.ToString());
-                Debug.Log("Failed to initialize office application.");
+                Debug.Log("初始化 Office 应用失败。");
             }
 
             if (this.application == null)
@@ -216,7 +82,7 @@ namespace FileConverter.ConversionJobs
 
             if (this.document == null)
             {
-                Debug.Log($"Load word document '{this.InputFilePath}'.");
+                Debug.Log($"加载 Word 文档：'{this.InputFilePath}'.");
 
                 this.document = this.application.Documents.Open(this.InputFilePath, System.Reflection.Missing.Value, true);
             }

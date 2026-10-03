@@ -5,7 +5,6 @@ namespace FileConverter.Diagnostics
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
-    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Threading;
@@ -15,8 +14,14 @@ namespace FileConverter.Diagnostics
     {
         private static readonly string diagnosticsFolderPath;
         private static readonly Dictionary<int, DiagnosticsData> diagnosticsDataById = new Dictionary<int, DiagnosticsData>();
+        private static readonly PropertyChangedEventArgs DataChangedEventArgs = new PropertyChangedEventArgs(nameof(Data));
         private static int threadCount = 0;
         private static readonly int mainThreadId = 0;
+        private static int firstErrorCode;
+        private static volatile bool isReleased;
+
+        [ThreadStatic]
+        private static DiagnosticsData currentDiagnosticsData;
 
         static Debug()
         {
@@ -24,7 +29,7 @@ namespace FileConverter.Diagnostics
 
             string path = FileConverterExtension.PathHelpers.GetUserDataFolderPath;
 
-            // Delete old diagnostics folder (1 day).
+            // 删除超过一天的诊断目录。
             DateTime expirationDate = DateTime.Now.Subtract(new TimeSpan(1, 0, 0, 0));
             string[] diagnosticsDirectories = Directory.GetDirectories(path, "Diagnostics-*");
             for (int index = 0; index < diagnosticsDirectories.Length; index++)
@@ -38,23 +43,28 @@ namespace FileConverter.Diagnostics
             }
 
             string diagnosticsFolderName = $"Diagnostics-{DateTime.Now.Hour}h{DateTime.Now.Minute}m{DateTime.Now.Second}s";
-            
+
             Debug.diagnosticsFolderPath = Path.Combine(path, diagnosticsFolderName);
             Debug.diagnosticsFolderPath = PathHelpers.GenerateUniquePath(Debug.diagnosticsFolderPath);
             Directory.CreateDirectory(Debug.diagnosticsFolderPath);
 
-            Debug.Log($"Diagnostics stored at path '{Debug.diagnosticsFolderPath}'");
+            Debug.Log($"诊断日志保存目录：'{Debug.diagnosticsFolderPath}'");
         }
 
-        public static int FirstErrorCode
-        {
-            get;
-            private set;
-        }
+        public static int FirstErrorCode => Volatile.Read(ref Debug.firstErrorCode);
 
         public static event EventHandler<PropertyChangedEventArgs> StaticPropertyChanged;
 
-        public static DiagnosticsData[] Data => Debug.diagnosticsDataById.Values.ToArray();
+        public static DiagnosticsData[] Data
+        {
+            get
+            {
+                lock (Debug.diagnosticsDataById)
+                {
+                    return Debug.diagnosticsDataById.Values.ToArray();
+                }
+            }
+        }
 
         public static void Log(string message)
         {
@@ -65,7 +75,7 @@ namespace FileConverter.Diagnostics
         {
             if (!condition)
             {
-                LogError("Assertion failed");
+                LogError("断言失败。");
             }
         }
 
@@ -79,41 +89,59 @@ namespace FileConverter.Diagnostics
 
         public static void LogError(string message)
         {
-            MessageBox.Show(message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
 
-            Debug.LogInternal(error: true, $"Error: {message}", ConsoleColor.Red);
+            Debug.LogInternal(error: true, $"错误：{message}", ConsoleColor.Red);
         }
 
         public static void LogError(int errorCode, string message)
         {
-            if (Debug.FirstErrorCode == 0)
-            {
-                Debug.FirstErrorCode = errorCode;
-            }
+            Interlocked.CompareExchange(ref Debug.firstErrorCode, errorCode, 0);
 
-            Debug.LogError($"{message} (code 0x{errorCode:X})");
+            Debug.LogError($"{message}（错误代码 0x{errorCode:X}）");
         }
 
         public static void Release()
         {
-            Debug.Log("Diagnostics manager released correctly.");
+            Debug.Log("诊断日志管理器已释放。");
 
-            foreach (KeyValuePair<int, DiagnosticsData> kvp in Debug.diagnosticsDataById)
+            DiagnosticsData[] data;
+            lock (Debug.diagnosticsDataById)
             {
-                kvp.Value.Release();
+                if (Debug.isReleased)
+                {
+                    return;
+                }
+
+                Debug.isReleased = true;
+                data = Debug.diagnosticsDataById.Values.ToArray();
+                Debug.diagnosticsDataById.Clear();
             }
 
-            Debug.diagnosticsDataById.Clear();
+            foreach (DiagnosticsData diagnosticsData in data)
+            {
+                lock (diagnosticsData)
+                {
+                    diagnosticsData.Release();
+                }
+            }
+
+            Debug.currentDiagnosticsData = null;
         }
 
         private static void LogInternal(bool error, string log, ConsoleColor color)
         {
-            DiagnosticsData diagnosticsData;
+            if (Debug.isReleased)
+            {
+                return;
+            }
+
+            DiagnosticsData diagnosticsData = Debug.currentDiagnosticsData;
 
             Thread currentThread = Thread.CurrentThread;
             int threadId = currentThread.ManagedThreadId;
 
-            // Display main thread logs in standard output.
+            // 主线程日志同时显示在标准输出中。
             if (threadId == Debug.mainThreadId)
             {
                 Console.ForegroundColor = color;
@@ -129,21 +157,44 @@ namespace FileConverter.Diagnostics
                 Console.ResetColor();
             }
 
-            lock (Debug.diagnosticsDataById)
+            if (diagnosticsData == null)
             {
-                if (!Debug.diagnosticsDataById.TryGetValue(threadId, out diagnosticsData))
+                bool dataAdded = false;
+                lock (Debug.diagnosticsDataById)
                 {
-                    string threadName = Debug.threadCount > 0 ? $"{currentThread.Name} ({Debug.threadCount})" : "Application";
-                    diagnosticsData = new DiagnosticsData(threadName);
-                    diagnosticsData.Initialize(Debug.diagnosticsFolderPath, threadId);
-                    Debug.diagnosticsDataById.Add(threadId, diagnosticsData);
-                    Debug.threadCount++;
+                    if (Debug.isReleased)
+                    {
+                        return;
+                    }
 
-                    StaticPropertyChanged?.Invoke(null, new PropertyChangedEventArgs("Data"));
+                    if (!Debug.diagnosticsDataById.TryGetValue(threadId, out diagnosticsData))
+                    {
+                        string threadName = Debug.threadCount > 0 ? $"{currentThread.Name} ({Debug.threadCount})" : "应用程序";
+                        diagnosticsData = new DiagnosticsData(threadName);
+                        diagnosticsData.Initialize(Debug.diagnosticsFolderPath, threadId);
+                        Debug.diagnosticsDataById.Add(threadId, diagnosticsData);
+                        Debug.threadCount++;
+                        dataAdded = true;
+                    }
+
+                    // 短生命周期线程可能重用托管线程编号，复用既有诊断对象。
+                    Debug.currentDiagnosticsData = diagnosticsData;
+                }
+
+                // 外部事件在集合锁外触发，避免界面回调阻塞其他日志线程。
+                if (dataAdded)
+                {
+                    StaticPropertyChanged?.Invoke(null, DataChangedEventArgs);
                 }
             }
 
-            diagnosticsData.Log(log);
+            lock (diagnosticsData)
+            {
+                if (!Debug.isReleased)
+                {
+                    diagnosticsData.Log(log);
+                }
+            }
         }
     }
 }

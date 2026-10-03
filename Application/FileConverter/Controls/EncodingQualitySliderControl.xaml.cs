@@ -6,7 +6,7 @@ namespace FileConverter.Controls
     using System.Windows.Controls;
 
     /// <summary>
-    /// Interaction logic for EncodingQualitySliderControl.
+    /// 编码质量滑块的界面交互逻辑。
     /// </summary>
     public partial class EncodingQualitySliderControl : UserControl
     {
@@ -33,10 +33,7 @@ namespace FileConverter.Controls
         
         public EncodingMode EncodingMode
         {
-            get
-            {
-                return (EncodingMode)this.GetValue(EncodingQualitySliderControl.EncodingModeProperty);
-            }
+            get => (EncodingMode)this.GetValue(EncodingQualitySliderControl.EncodingModeProperty);
 
             set
             {
@@ -46,10 +43,7 @@ namespace FileConverter.Controls
 
         public double Bitrate
         {
-            get
-            {
-                return (double)this.GetValue(EncodingQualitySliderControl.BitrateProperty);
-            }
+            get => (double)this.GetValue(EncodingQualitySliderControl.BitrateProperty);
 
             set
             {

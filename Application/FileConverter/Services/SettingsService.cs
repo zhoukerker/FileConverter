@@ -17,8 +17,8 @@ namespace FileConverter.Services
     {
         public SettingsService()
         {
-            // Load settigns.
-            Debug.Log("Load settings...");
+            // 加载设置。
+            Debug.Log("正在加载设置……");
             this.Settings = this.Load();
         }
 
@@ -27,7 +27,7 @@ namespace FileConverter.Services
             get;
             private set;
         }
-        
+
         private string UserSettingsTemporaryFilePath
         {
             get
@@ -40,11 +40,11 @@ namespace FileConverter.Services
 
         public bool PostInstallationInitialization()
         {
-            Debug.Log("Execute post installation initialization.");
+            Debug.Log("执行安装后的初始化。");
 
             Settings defaultSettings = null;
 
-            // Load the default settings.
+            // 加载默认设置。
             if (File.Exists(FileConverterExtension.PathHelpers.DefaultSettingsFilePath))
             {
                 try
@@ -53,17 +53,17 @@ namespace FileConverter.Services
                 }
                 catch (Exception exception)
                 {
-                    Debug.LogError($"Fail to load file converter default settings. {exception.Message}");
+                    Debug.LogError($"无法加载 File Converter 默认设置：{exception.Message}");
                     return false;
                 }
             }
             else
             {
-                Debug.LogError($"Default settings not found at path {FileConverterExtension.PathHelpers.DefaultSettingsFilePath}. You should try to reinstall the application.");
+                Debug.LogError($"路径 {FileConverterExtension.PathHelpers.DefaultSettingsFilePath} 中没有默认设置，请尝试重新安装应用程序。");
                 return false;
             }
 
-            // Load user settings if exists.
+            // 加载已有的用户设置。
             Settings userSettings = null;
             if (File.Exists(FileConverterExtension.PathHelpers.UserSettingsFilePath))
             {
@@ -82,11 +82,11 @@ namespace FileConverter.Services
                     {
                         this.MigrateSettingsToCurrentVersion(userSettings);
 
-                        Debug.Log($"File converter settings have been imported from version {userSettings.SerializationVersion} to version {Settings.Version}.");
+                        Debug.Log($"File Converter 设置已从版本 {userSettings.SerializationVersion} 迁移到版本 {Settings.Version}。");
                         userSettings.SerializationVersion = Settings.Version;
                     }
 
-                    // Remove default settings.
+                    // 移除默认设置。
                     if (userSettings.ConversionPresets != null)
                     {
                         for (int index = userSettings.ConversionPresets.Count - 1; index >= 0; index--)
@@ -111,7 +111,7 @@ namespace FileConverter.Services
 
         public void RevertSettings()
         {
-            // Load previous preset in order to cancel changes.
+            // 重新加载原预设以撤销修改。
             this.Settings = this.Load();
         }
 
@@ -127,7 +127,7 @@ namespace FileConverter.Services
                     stopwatch.Start();
                     XmlHelpers.LoadFromFile<Settings>("Settings", FileConverterExtension.PathHelpers.UserSettingsFilePath, out userSettings);
                     stopwatch.Stop();
-                    Debug.Log($"Settings load time: {stopwatch.Elapsed.TotalMilliseconds}ms");
+                    Debug.Log($"设置加载耗时：{stopwatch.Elapsed.TotalMilliseconds} 毫秒");
 
                     settings = userSettings;
                 }
@@ -154,14 +154,14 @@ namespace FileConverter.Services
                 {
                     this.MigrateSettingsToCurrentVersion(userSettings);
 
-                    Debug.Log($"File converter settings has been imported from version {userSettings.SerializationVersion} to version {Settings.Version}.");
+                    Debug.Log($"File Converter 设置已从版本 {userSettings.SerializationVersion} 迁移到版本 {Settings.Version}。");
                     userSettings.SerializationVersion = Settings.Version;
                     this.Save(userSettings);
                 }
             }
             else
             {
-                // Load the default settings.
+                // 加载默认设置。
                 if (File.Exists(FileConverterExtension.PathHelpers.DefaultSettingsFilePath))
                 {
                     try
@@ -171,12 +171,12 @@ namespace FileConverter.Services
                     }
                     catch (Exception exception)
                     {
-                        Debug.LogError($"Fail to load file converter default settings. {exception.Message}");
+                        Debug.LogError($"无法加载 File Converter 默认设置：{exception.Message}");
                     }
                 }
                 else
                 {
-                    Debug.LogError($"Default settings not found at path {FileConverterExtension.PathHelpers.DefaultSettingsFilePath}. You should try to reinstall the application.");
+                    Debug.LogError($"路径 {FileConverterExtension.PathHelpers.DefaultSettingsFilePath} 中没有默认设置，请尝试重新安装应用程序。");
                 }
             }
 
@@ -192,10 +192,10 @@ namespace FileConverter.Services
 
             settings.Clean();
 
-            // Save the settings in a temporary files (we'll write the settings file when we'll succeed to write the registry keys).
+            // 先将设置写入临时文件，保存注册表项成功后再提交设置文件。
             XmlHelpers.SaveToFile("Settings", this.UserSettingsTemporaryFilePath, settings);
 
-            // Copy temporary settings file to the real settings file.
+            // 将临时设置文件复制到正式设置路径。
             File.Copy(this.UserSettingsTemporaryFilePath, FileConverterExtension.PathHelpers.UserSettingsFilePath, true);
             File.Delete(this.UserSettingsTemporaryFilePath);
 

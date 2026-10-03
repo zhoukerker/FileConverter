@@ -15,11 +15,11 @@
                 <ResourceDictionary Source="Views/Resources/CustomStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!--Global View Model Locator-->
+            <!-- 全局视图模型定位器 -->
             <viewModels:ViewModelLocator x:Key="Locator" />
             <services:UpgradeService x:Key="Upgrade" />
 
-            <!-- Markdown style -->
+            <!-- Markdown 显示样式 -->
             <xaml:Markdown x:Key="Markdown">
                 <xaml:Markdown.DocumentStyle>
                     <Style TargetType="FlowDocument">
@@ -54,7 +54,7 @@
                 </xaml:Markdown.Heading3Style>
             </xaml:Markdown>
 
-            <!-- Converters -->
+            <!-- 数据绑定转换器 -->
             <valueConverters:ApplicationVersionToApplicationName x:Key="ApplicationVersionToApplicationName"/>
             <generic:BoolToVisibility x:Key="BoolToVisibility"/>
 

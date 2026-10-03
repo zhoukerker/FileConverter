@@ -12,12 +12,12 @@ namespace FileConverter.ValueConverters
         {
             if (!(value is FileConverter.Version))
             {
-                return "File Converter";
+                return "文件转换器";
             }
 
             FileConverter.Version version = (FileConverter.Version)value;
 
-            return $"File Converter v{version}";
+            return $"文件转换器 v{version}";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

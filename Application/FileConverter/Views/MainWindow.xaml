@@ -23,7 +23,7 @@
         <Binding Converter="{StaticResource ApplicationVersionToApplicationName}" Mode="OneWay" Path="(local:Application.ApplicationVersion)"/>
     </Window.Title>
     <Window.TaskbarItemInfo>
-        <TaskbarItemInfo 
+        <TaskbarItemInfo
             ProgressState="{Binding ConversionJobs, Converter={StaticResource ConversionJobsToProgressState}}"
             ProgressValue="{Binding ConversionJobs, Converter={StaticResource ConversionJobsToProgressValue}}" />
     </Window.TaskbarItemInfo>
@@ -53,14 +53,26 @@
             </Button>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" CanContentScroll="True">
-            <ItemsControl ItemsSource="{Binding ConversionJobs}">
+            <ItemsControl Grid.Row="1" ItemsSource="{Binding ConversionJobs}"
+                          VirtualizingStackPanel.IsVirtualizing="True"
+                          VirtualizingStackPanel.VirtualizationMode="Recycling">
+                <ItemsControl.Template>
+                    <ControlTemplate TargetType="ItemsControl">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" CanContentScroll="True">
+                            <ItemsPresenter />
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </ItemsControl.Template>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <controls:ConversionJobControl Margin="5"></controls:ConversionJobControl>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-        </ScrollViewer>
     </Grid>
 </Window>

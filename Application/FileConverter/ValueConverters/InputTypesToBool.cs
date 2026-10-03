@@ -14,7 +14,7 @@ namespace FileConverter.ValueConverters
             List<string> intputTypes = value as List<string>;
             if (intputTypes == null)
             {
-                throw new ArgumentException("The value must be an list of string.");
+                throw new ArgumentException("值必须为字符串列表。");
             }
 
             string referenceTypeName = parameter as string;

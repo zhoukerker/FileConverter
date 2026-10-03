@@ -4,7 +4,6 @@ namespace FileConverter.ConversionJobs
 {
     using System;
     using System.IO;
-    using System.Threading.Tasks;
 
     public class ConversionJob_Gif : ConversionJob
     {
@@ -20,8 +19,8 @@ namespace FileConverter.ConversionJobs
         {
             base.Cancel();
 
-            this.pngConversionJob.Cancel();
-            this.gifConversionJob.Cancel();
+            this.pngConversionJob?.Cancel();
+            this.gifConversionJob?.Cancel();
         }
 
         protected override void Initialize()
@@ -30,36 +29,33 @@ namespace FileConverter.ConversionJobs
 
             if (this.ConversionPreset == null)
             {
-                throw new Exception("The conversion preset must be valid.");
+                throw new Exception("转换预设无效。");
             }
 
             string extension = System.IO.Path.GetExtension(this.InputFilePath);
             extension = extension.ToLowerInvariant().Substring(1, extension.Length - 1);
 
-            string inputFilePath = string.Empty;
+            string inputFilePath = this.InputFilePath;
 
-            // If the output is an image start to convert it into png before send it to ffmpeg.
+            // 非 PNG 图片先转换为 PNG，再交给 FFmpeg 编码。
             if (Helpers.GetExtensionCategory(extension) == Helpers.InputCategoryNames.Image && extension != "png")
             {
-                // Generate intermediate file path.
+                // 生成临时中间文件路径。
                 string fileName = Path.GetFileName(this.OutputFilePath);
                 string tempPath = Path.GetTempPath();
                 this.intermediateFilePath = PathHelpers.GenerateUniquePath(tempPath + fileName + ".png");
 
-                // Convert input in png file to send it to ffmpeg for the gif conversion.
+                // 将输入转换为 FFmpeg 能读取的 PNG。
                 ConversionPreset intermediatePreset = new ConversionPreset("To compatible image", OutputType.Png, this.ConversionPreset.InputTypes.ToArray());
                 this.pngConversionJob = ConversionJobFactory.Create(intermediatePreset, this.InputFilePath);
                 this.pngConversionJob.PrepareConversion(this.intermediateFilePath);
 
                 inputFilePath = this.intermediateFilePath;
             }
-            else
-            {
-                inputFilePath = this.InputFilePath;
-            }
 
-            // Convert png file into ico.
-            this.gifConversionJob = new ConversionJob_FFMPEG(this.ConversionPreset, inputFilePath);
+            // 将输入编码为 GIF。
+            ConversionPreset encodingPreset = new ConversionPreset("Gif encoding", this.ConversionPreset);
+            this.gifConversionJob = new ConversionJob_FFMPEG(encodingPreset, inputFilePath);
             this.gifConversionJob.PrepareConversion(this.OutputFilePath);
         }
 
@@ -67,64 +63,29 @@ namespace FileConverter.ConversionJobs
         {
             if (this.ConversionPreset == null)
             {
-                throw new Exception("The conversion preset must be valid.");
+                throw new Exception("转换预设无效。");
             }
-
-            Task updateProgress = this.UpdateProgress();
 
             if (this.pngConversionJob != null)
             {
                 this.UserState = Properties.Resources.ConversionStateReadIntputImage;
 
                 Diagnostics.Debug.Log(string.Empty);
-                Diagnostics.Debug.Log("Convert image to PNG (intermediate format).");
-                this.pngConversionJob.StartConversion();
-
-                if (this.pngConversionJob.State != ConversionState.Done)
+                Diagnostics.Debug.Log("将图片转换为 PNG 中间格式。");
+                if (!this.StartChildConversion(this.pngConversionJob, false))
                 {
-                    this.ConversionFailed(this.pngConversionJob.ErrorMessage);
                     return;
                 }
             }
 
             Diagnostics.Debug.Log(string.Empty);
-            Diagnostics.Debug.Log("Convert png intermediate image to gif.");
-            this.gifConversionJob.StartConversion();
-
-            if (this.gifConversionJob.State != ConversionState.Done)
-            {
-                this.ConversionFailed(this.gifConversionJob.ErrorMessage);
-                return;
-            }
-
-            if (!string.IsNullOrEmpty(this.intermediateFilePath))
-            {
-                Diagnostics.Debug.Log($"Delete intermediate file {this.intermediateFilePath}.");
-
-                File.Delete(this.intermediateFilePath);
-            }
-
-            updateProgress.Wait();
+            Diagnostics.Debug.Log("将 PNG 中间图片编码为 GIF。");
+            this.StartChildConversion(this.gifConversionJob);
         }
 
-        private async Task UpdateProgress()
+        protected override void ReleaseResources()
         {
-            while (this.gifConversionJob.State != ConversionState.Done &&
-                   this.gifConversionJob.State != ConversionState.Failed)
-            {
-                if (this.pngConversionJob != null && this.pngConversionJob.State == ConversionState.InProgress)
-                {
-                    this.Progress = this.pngConversionJob.Progress;
-                }
-
-                if (this.gifConversionJob != null && this.gifConversionJob.State == ConversionState.InProgress)
-                {
-                    this.Progress = this.gifConversionJob.Progress;
-                    this.UserState = this.gifConversionJob.UserState;
-                }
-
-                await Task.Delay(40);
-            }
+            DeleteIntermediateFile(this.intermediateFilePath);
         }
     }
 }

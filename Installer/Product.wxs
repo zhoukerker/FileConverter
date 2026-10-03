@@ -1,17 +1,17 @@
-﻿<!-- Upgrade documentation: http://wixtoolset.org/documentation/manual/v3/howtos/updates/major_upgrade.html -->
+﻿<!-- 主版本升级参考：http://wixtoolset.org/documentation/manual/v3/howtos/updates/major_upgrade.html -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
-    <Package Name="File Converter" Language="1033" Version="2.2.0" Manufacturer="Adrien Allard" UpgradeCode="e3ca717b-a897-418a-bbef-5c7e35c76e4b" InstallerVersion="500">
+    <Package Name="文件转换器" Language="2052" Version="2.2.0" Manufacturer="Adrien Allard" UpgradeCode="e3ca717b-a897-418a-bbef-5c7e35c76e4b" InstallerVersion="500">
         <Icon Id="icon.ico" SourceFile="..\Resources\Icons\ApplicationIcon.ico" />
         <Property Id="ARPPRODUCTICON" Value="icon.ico" />
-        <SetProperty Id="ARPINSTALLLOCATION" Value="[ApplicationFolder]" After="CostFinalize" />
-      
-        <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="A later version of [ProductName] is already installed. Setup will now exit." />
-        
+        <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]" After="CostFinalize" />
+
+        <MajorUpgrade Schedule="afterInstallInitialize" IgnoreLanguage="yes" DowngradeErrorMessage="已安装更高版本的 [ProductName]，安装程序将退出。" />
+
         <Media Id="1" Cabinet="CabFile.cab" EmbedCab="yes" />
 
-        <Feature Id="Application" Title="Installer" Level="1">
+        <Feature Id="Application" Title="安装程序" Level="1">
             <ComponentGroupRef Id="ProductComponents" />
-            <ComponentGroupRef Id="Languages" />
+
         </Feature>
 
         <CustomAction Id="InstallShell" ExeCommand="--register-shell-extension &quot;[INSTALLFOLDER]FileConverterExtension.dll&quot;" Execute="deferred" Return="check" Impersonate="no" FileRef="FileConverter.exe" />
@@ -19,29 +19,29 @@
         <CustomAction Id="PostInstallInit" ExeCommand="--post-install-init" Execute="immediate" FileRef="FileConverter.exe" />
 
         <UI>
-            <ProgressText Action="InstallFiles" Template="File: [1],  Directory: [9],  Size: [6]" Message="Copying new files" />
-            <ProgressText Action="InstallShell" Message="Register shell extension to Windows Explorer" />
-            <ProgressText Action="UninstallShell" Message="Unregister shell extension from Windows Explorer" />
-            <ProgressText Action="PostInstallInit" Message="Initialize conversion presets" />
+            <ProgressText Action="InstallFiles" Template="文件：[1]，目录：[9]，大小：[6]" Message="正在复制文件" />
+            <ProgressText Action="InstallShell" Message="正在注册资源管理器右键菜单" />
+            <ProgressText Action="UninstallShell" Message="正在注销资源管理器右键菜单" />
+            <ProgressText Action="PostInstallInit" Message="正在初始化转换预设" />
         </UI>
 
         <PropertyRef Id="WIX_IS_NETFRAMEWORK_48_OR_LATER_INSTALLED" />
-        <Launch Condition="Installed OR WIX_IS_NETFRAMEWORK_48_OR_LATER_INSTALLED" Message="This application requires .NET Framework 4.8. Please install the .NET Framework then run this installer again." />
+        <Launch Condition="Installed OR WIX_IS_NETFRAMEWORK_48_OR_LATER_INSTALLED" Message="本程序需要 .NET Framework 4.8，请安装后重新运行此安装程序。" />
 
         <InstallExecuteSequence>
             <Custom Action="UninstallShell" Before="RemoveRegistryValues" Condition="(NOT UPGRADINGPRODUCTCODE) AND (REMOVE~=&quot;ALL&quot;)" />
             <Custom Action="InstallShell" After="WriteRegistryValues" Condition="NOT Installed" />
             <Custom Action="PostInstallInit" After="InstallFinalize" Condition="NOT Installed" />
         </InstallExecuteSequence>
-        
+
         <ui:WixUI Id="WixUI_InstallDir" />
         <Property Id="MSIUSEREALADMINDETECTION" Value="1" />
         <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-        <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" Secure="yes" /> <!-- This avoid an issue where the installer detect the utilization of the extension dll in explorer and then, ask to the user to restart these applications. The restart fails. -->
-      
-        <WixVariable Id="WixUILicenseRtf" Value="License.rtf" /> 
+        <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" Secure="yes" /> <!-- 避免重启管理器要求重启占用扩展的资源管理器而导致安装失败。 -->
+
+        <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
         <WixVariable Id="WixUIBannerBmp" Value="..\Resources\Installer\Banner.bmp" />
-        <WixVariable Id="WixUIDialogBmp" Value="..\Resources\Installer\UI.bmp" /> 
+        <WixVariable Id="WixUIDialogBmp" Value="..\Resources\Installer\UI.bmp" />
         <WixVariable Id="WixUIExclamationIco" Value="..\Resources\Installer\ErrorIcon.ico" />
         <WixVariable Id="WixUIInfoIco" Value="..\Resources\Installer\WarningIcon.ico" />
         <!--<WixVariable Id="WixUINewIco" Value="Icon16x16.ico" />
@@ -50,22 +50,22 @@
 
     <Fragment>
         <StandardDirectory Id="ProgramFiles64Folder">
-            <Directory Id="INSTALLFOLDER" Name="!(bind.Property.ProductName)" />
+            <Directory Id="INSTALLFOLDER" Name="File Converter" />
         </StandardDirectory>
         <StandardDirectory Id="ProgramMenuFolder">
-            <Directory Id="ApplicationStartMenuShortcut" Name="File Converter" />
+            <Directory Id="ApplicationStartMenuShortcut" Name="文件转换器" />
         </StandardDirectory>
     </Fragment>
 
     <Fragment>
         <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-            <!-- Application -->
+            <!-- 主程序 -->
             <Component Guid="{EFA8CCE9-E501-4C80-AE33-710D11CC2525}">
                 <File Id="FileConverter.exe" Source="$(var.FileConverter.TargetPath)" KeyPath="yes" Checksum="yes">
-                    <Shortcut Id="ApplicationStartMenuShortcut" Directory="ApplicationStartMenuShortcut" Advertise="yes" WorkingDirectory="INSTALLFOLDER" Name="File Converter" Description="Convert and compress everything in 2 clicks!" Icon="Icon.exe">
+                    <Shortcut Id="ApplicationStartMenuShortcut" Directory="ApplicationStartMenuShortcut" Advertise="yes" WorkingDirectory="INSTALLFOLDER" Name="文件转换器" Description="通过右键菜单转换和压缩文件" Icon="Icon.exe">
                         <Icon Id="Icon.exe" SourceFile="$(var.FileConverter.TargetPath)" />
                     </Shortcut>
-                    <Shortcut Id="ApplicationSettingsStartMenuShortcut" Directory="ApplicationStartMenuShortcut" Advertise="yes" WorkingDirectory="INSTALLFOLDER" Name="File Converter Settings" Description="Configure the conversion and compression presets" Arguments="--settings" Icon="SettingsIcon.exe">
+                    <Shortcut Id="ApplicationSettingsStartMenuShortcut" Directory="ApplicationStartMenuShortcut" Advertise="yes" WorkingDirectory="INSTALLFOLDER" Name="文件转换器设置" Description="配置文件转换和压缩预设" Arguments="--settings" Icon="SettingsIcon.exe">
                         <Icon Id="SettingsIcon.exe" SourceFile="$(var.FileConverter.TargetPath)" />
                     </Shortcut>
                 </File>
@@ -74,16 +74,35 @@
             <Component Guid="{3E003FD3-46CA-4F4F-811E-663332828229}">
                 <File Id="FileConverter.exe.config" Source="$(var.FileConverter.TargetDir)FileConverter.exe.config" KeyPath="yes" Checksum="yes" />
             </Component>
-            
-            <!-- Extension -->
+
+            <!-- 资源管理器扩展 -->
             <Component Guid="{35B28709-C56C-4F18-9A41-4B238402EE48}">
                 <File Id="FileConverterExtension.dll" Source="$(var.FileConverterExtension.TargetDir)FileConverterExtension.dll" KeyPath="yes" Checksum="yes" />
             </Component>
             <Component Guid="{566A73FB-427D-43C4-9ABC-92F2528F6D0A}">
                 <File Id="SharpShell.dll" Source="$(var.FileConverterExtension.TargetDir)SharpShell.dll" KeyPath="yes" Checksum="yes" />
             </Component>
-            
-            <!-- Third parties -->
+
+            <!-- 第三方运行库 -->
+            <!-- Office 转换在运行时需要这些程序集，必须随安装包交付。 -->
+            <Component Id="NetOfficeAssembly" Guid="*">
+                <File Id="NetOffice.dll" Source="$(var.FileConverter.TargetDir)NetOffice.dll" KeyPath="yes" Checksum="yes" />
+            </Component>
+            <Component Id="OfficeApiAssembly" Guid="*">
+                <File Id="OfficeApi.dll" Source="$(var.FileConverter.TargetDir)OfficeApi.dll" KeyPath="yes" Checksum="yes" />
+            </Component>
+            <Component Id="WordApiAssembly" Guid="*">
+                <File Id="WordApi.dll" Source="$(var.FileConverter.TargetDir)WordApi.dll" KeyPath="yes" Checksum="yes" />
+            </Component>
+            <Component Id="ExcelApiAssembly" Guid="*">
+                <File Id="ExcelApi.dll" Source="$(var.FileConverter.TargetDir)ExcelApi.dll" KeyPath="yes" Checksum="yes" />
+            </Component>
+            <Component Id="PowerPointApiAssembly" Guid="*">
+                <File Id="PowerPointApi.dll" Source="$(var.FileConverter.TargetDir)PowerPointApi.dll" KeyPath="yes" Checksum="yes" />
+            </Component>
+            <Component Id="VBIDEApiAssembly" Guid="*">
+                <File Id="VBIDEApi.dll" Source="$(var.FileConverter.TargetDir)VBIDEApi.dll" KeyPath="yes" Checksum="yes" />
+            </Component>
             <Component Guid="{bae11ca4-0842-46f0-b0e5-95ecc1c994fc}">
                 <File Id="CommunityToolkit.Mvvm.dll" Source="$(var.FileConverter.TargetDir)CommunityToolkit.Mvvm.dll" KeyPath="yes" Checksum="yes" />
             </Component>
@@ -127,7 +146,7 @@
             <Component Guid="{3B94F60C-29BF-4E51-AF85-C10DF19B0B2E}">
               <File Id="Magick.NET.dll" Source="$(var.FileConverter.TargetDir)Magick.NET-Q16-AnyCPU.dll" KeyPath="yes" Checksum="yes" />
             </Component>
-          
+
             <Component Guid="{BEEAAC73-C479-4080-83B1-2B1448C7378C}">
                 <File Id="ffmpeg.exe" Source="$(var.FileConverter.TargetDir)ffmpeg.exe" KeyPath="yes" Checksum="yes" />
             </Component>
@@ -149,8 +168,8 @@
             <Component Guid="{6268D6C0-42D8-4487-AC4B-33C9874C9E2F}">
                 <File Id="WpfAnimatedGif.dll" KeyPath="yes" Source="$(var.FileConverter.TargetDir)WpfAnimatedGif.dll" Checksum="yes" />
             </Component>
-            
-            <!-- Configuration and documentation -->
+
+            <!-- 配置与文档 -->
             <Component Guid="{AD58807A-2AE2-48BE-AB55-9BDE9BBE37F3}">
                 <File Id="Settings.default.xml" Source="$(var.FileConverter.ProjectDir)\Settings.default.xml" KeyPath="yes" />
             </Component>
@@ -164,7 +183,7 @@
                 <File Id="LICENSE.md" Source="..\LICENSE.md" KeyPath="yes" />
             </Component>
 
-            <!-- Registry entries -->
+            <!-- 注册表项 -->
             <Component Id="RegistryEntries" Guid="{1862E9DC-1B37-4AFD-85BF-2E9CFFAFA9F8}">
                 <RegistryKey Root="HKCU" Key="Software\FileConverter" ForceDeleteOnUninstall="yes">
                     <RegistryValue Name="Path" Type="string" Value="[INSTALLFOLDER]FileConverter.exe" />

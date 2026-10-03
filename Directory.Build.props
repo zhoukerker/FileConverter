@@ -1,0 +1,21 @@
+﻿<Project>
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Platforms>AnyCPU;x64;x86</Platforms>
+    <PlatformTarget Condition="'$(Platform)' == 'x64' Or '$(Platform)' == 'x86'">$(Platform)</PlatformTarget>
+    <OutputPath Condition="'$(Platform)' != '' And '$(Platform)' != 'AnyCPU'">bin\$(Platform)\$(Configuration)\</OutputPath>
+    <DefineConstants Condition="'$(Platform)' == 'x86'">$(DefineConstants);BUILD32</DefineConstants>
+    <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+    <DebugType Condition="'$(Configuration)' == 'Release'">pdbonly</DebugType>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <!-- 引用程序集仅用于编译，不随应用发布。 -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

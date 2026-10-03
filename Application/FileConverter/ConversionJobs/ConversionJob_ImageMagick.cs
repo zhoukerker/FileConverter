@@ -30,23 +30,27 @@ namespace FileConverter.ConversionJobs
             string applicationDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             MagickNET.SetGhostscriptDirectory(applicationDirectory);
 
-            this.isInputFilePdf = System.IO.Path.GetExtension(this.InputFilePath).ToLowerInvariant() == ".pdf";
+            this.isInputFilePdf = string.Equals(System.IO.Path.GetExtension(this.InputFilePath), ".pdf", StringComparison.OrdinalIgnoreCase);
 
             if (this.ConversionPreset == null)
             {
-                throw new Exception("The conversion preset must be valid.");
+                throw new Exception("转换预设无效。");
             }
         }
 
         protected override int GetOutputFilesCount()
         {
-            if (System.IO.Path.GetExtension(this.InputFilePath).ToLowerInvariant() == ".pdf")
+            if (string.Equals(System.IO.Path.GetExtension(this.InputFilePath), ".pdf", StringComparison.OrdinalIgnoreCase))
             {
+                string applicationDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                MagickNET.SetGhostscriptDirectory(applicationDirectory);
+
                 using (MagickImageCollection images = new MagickImageCollection())
                 {
                     MagickReadSettings settings = new MagickReadSettings();
                     settings.Density = new Density(1, 1);
-                    images.Read(this.InputFilePath);
+                    // 页数统计只读取元数据，不为每一页保留完整像素。
+                    images.Ping(this.InputFilePath, settings);
 
                     return images.Count;
                 }
@@ -59,7 +63,7 @@ namespace FileConverter.ConversionJobs
         {
             if (this.ConversionPreset == null)
             {
-                throw new Exception("The conversion preset must be valid.");
+                throw new Exception("转换预设无效。");
             }
 
             this.CurrentOutputFilePathIndex = 0;
@@ -77,23 +81,23 @@ namespace FileConverter.ConversionJobs
                 switch (inputExtension)
                 {
                     case ".avif":
-                        // Explicitly set AVIF format for proper reading
+                        // 显式指定 AVIF 格式，确保正确读取。
                         readSettings.Format = MagickFormat.Avif;
                         break;
 
                     case ".cr2":
-                        // Requires an explicit image format otherwise the image is interpreted as a TIFF image.
+                        // 显式指定图片格式，避免被误识别为 TIFF。
                         readSettings.Format = MagickFormat.Cr2;
                         break;
 
                     case ".dng":
-                        // Requires an explicit image format otherwise the image is interpreted as a TIFF image.
+                        // 显式指定图片格式，避免被误识别为 TIFF。
                         readSettings.Format = MagickFormat.Dng;
                         break;
 
                     case ".gif":
-                        // Get the first frame of the gif for conversion.
-                        // Maybe in the future make this user selectable.
+                        // 转换时读取 GIF 第一帧。
+                        // 后续可考虑让用户选择需要转换的帧。
                         readSettings.FrameIndex = 0;
                         break;
 
@@ -103,7 +107,7 @@ namespace FileConverter.ConversionJobs
 
                 using (MagickImage image = new MagickImage(this.InputFilePath, readSettings))
                 {
-                    Debug.Log($"Load image {this.InputFilePath} succeed.");
+                    Debug.Log($"成功加载图片：{this.InputFilePath}。");
                     this.ConvertImage(image);
                 }
             }
@@ -117,21 +121,21 @@ namespace FileConverter.ConversionJobs
             float scaleFactor = this.ConversionPreset.GetSettingsValue<float>(ConversionPreset.ConversionSettingKeys.ImageScale);
             if (Math.Abs(scaleFactor - 1f) >= 0.005f)
             {
-                Debug.Log($"Apply scale factor: {scaleFactor * 100}%.");
+                Debug.Log($"应用缩放比例：{scaleFactor * 100}%。");
 
                 dpi *= scaleFactor;
             }
 
-            Debug.Log($"Density: {dpi}dpi.");
+            Debug.Log($"像素密度：{dpi} dpi。");
             settings.Density = new Density(dpi * PdfSuperSamplingRatio);
 
             this.UserState = Properties.Resources.ConversionStateReadDocument;
 
             using (MagickImageCollection images = new MagickImageCollection())
             {
-                // Add all the pages of the pdf file to the collection
+                // 一次读取全部 PDF 页面，沿用现有渲染流程。
                 images.Read(this.InputFilePath, settings);
-                Debug.Log($"Load pdf {this.InputFilePath} succeed.");
+                Debug.Log($"成功加载 PDF：{this.InputFilePath}。");
 
                 this.pageCount = images.Count;
 
@@ -139,7 +143,12 @@ namespace FileConverter.ConversionJobs
 
                 foreach (MagickImage image in images)
                 {
-                    Debug.Log($"Write page {this.CurrentOutputFilePathIndex + 1}/{this.pageCount}.");
+                    if (this.CancelIsRequested || this.State == ConversionState.Failed)
+                    {
+                        return;
+                    }
+
+                    Debug.Log($"写入第 {this.CurrentOutputFilePathIndex + 1}/{this.pageCount} 页。");
 
                     if (PdfSuperSamplingRatio > 1)
                     {
@@ -149,7 +158,7 @@ namespace FileConverter.ConversionJobs
                     }
 
                     this.ConvertImage(image, true);
-                    
+
                     this.CurrentOutputFilePathIndex++;
                 }
             }
@@ -159,93 +168,99 @@ namespace FileConverter.ConversionJobs
         {
             image.Progress += this.Image_Progress;
 
-            if (!ignoreScale && this.ConversionPreset.IsRelevantSetting(ConversionPreset.ConversionSettingKeys.ImageScale))
+            try
             {
-                float scaleFactor = this.ConversionPreset.GetSettingsValue<float>(ConversionPreset.ConversionSettingKeys.ImageScale);
-                if (Math.Abs(scaleFactor - 1f) >= 0.005f)
+
+                if (!ignoreScale && this.ConversionPreset.IsRelevantSetting(ConversionPreset.ConversionSettingKeys.ImageScale))
                 {
-                    Debug.Log($"Apply scale factor: {scaleFactor * 100}%.");
-
-                    image.Scale(new Percentage(scaleFactor * 100f));
-                }
-            }
-
-            if (this.ConversionPreset.IsRelevantSetting(ConversionPreset.ConversionSettingKeys.ImageRotation))
-            {
-                float rotateAngleInDegrees = this.ConversionPreset.GetSettingsValue<float>(ConversionPreset.ConversionSettingKeys.ImageRotation);
-                if (Math.Abs(rotateAngleInDegrees - 0f) >= 0.05f)
-                {
-                    Debug.Log($"Apply rotation: {rotateAngleInDegrees}°.");
-
-                    image.Rotate(rotateAngleInDegrees);
-                }
-            }
-
-            if (this.ConversionPreset.IsRelevantSetting(ConversionPreset.ConversionSettingKeys.ImageClampSizePowerOf2))
-            {
-                bool clampSizeToPowerOf2 = this.ConversionPreset.GetSettingsValue<bool>(ConversionPreset.ConversionSettingKeys.ImageClampSizePowerOf2);
-                if (clampSizeToPowerOf2)
-                {
-                    uint referenceSize = System.Math.Min(image.Width, image.Height);
-                    uint size = 2;
-                    while (size * 2 <= referenceSize)
+                    float scaleFactor = this.ConversionPreset.GetSettingsValue<float>(ConversionPreset.ConversionSettingKeys.ImageScale);
+                    if (Math.Abs(scaleFactor - 1f) >= 0.005f)
                     {
-                        size *= 2;
+                        Debug.Log($"应用缩放比例：{scaleFactor * 100}%。");
+
+                        image.Scale(new Percentage(scaleFactor * 100f));
                     }
-
-                    Debug.Log($"Clamp size to the nearest power of 2 size (from {image.Width}x{image.Height} to {size}x{size}).");
-
-                    image.Scale(size, size);
                 }
-            }
 
-            if (this.ConversionPreset.IsRelevantSetting(ConversionPreset.ConversionSettingKeys.ImageMaximumSize))
-            {
-                uint maximumSize = this.ConversionPreset.GetSettingsValue<uint>(ConversionPreset.ConversionSettingKeys.ImageMaximumSize);
-                if (maximumSize > 0)
+                if (this.ConversionPreset.IsRelevantSetting(ConversionPreset.ConversionSettingKeys.ImageRotation))
                 {
-                    uint width = System.Math.Min(image.Width, maximumSize);
-                    uint height = System.Math.Min(image.Height, maximumSize);
+                    float rotateAngleInDegrees = this.ConversionPreset.GetSettingsValue<float>(ConversionPreset.ConversionSettingKeys.ImageRotation);
+                    if (Math.Abs(rotateAngleInDegrees - 0f) >= 0.05f)
+                    {
+                        Debug.Log($"应用旋转角度：{rotateAngleInDegrees}°。");
 
-                    Debug.Log($"Clamp size to maximum size of {width}x{width} (from {image.Width}x{image.Height} to {width}x{height}).");
-
-                    image.Scale(width, height);
+                        image.Rotate(rotateAngleInDegrees);
+                    }
                 }
-            }
 
-            Debug.Log($"Convert image (output: {this.OutputFilePath}).");
-            switch (this.ConversionPreset.OutputType)
+                if (this.ConversionPreset.IsRelevantSetting(ConversionPreset.ConversionSettingKeys.ImageClampSizePowerOf2))
+                {
+                    bool clampSizeToPowerOf2 = this.ConversionPreset.GetSettingsValue<bool>(ConversionPreset.ConversionSettingKeys.ImageClampSizePowerOf2);
+                    if (clampSizeToPowerOf2)
+                    {
+                        uint referenceSize = System.Math.Min(image.Width, image.Height);
+                        uint size = 2;
+                        while (size * 2 <= referenceSize)
+                        {
+                            size *= 2;
+                        }
+
+                        Debug.Log($"将图片边长调整为最接近的 2 的幂：{image.Width}×{image.Height} → {size}×{size}。");
+
+                        image.Scale(size, size);
+                    }
+                }
+
+                if (this.ConversionPreset.IsRelevantSetting(ConversionPreset.ConversionSettingKeys.ImageMaximumSize))
+                {
+                    uint maximumSize = this.ConversionPreset.GetSettingsValue<uint>(ConversionPreset.ConversionSettingKeys.ImageMaximumSize);
+                    if (maximumSize > 0)
+                    {
+                        uint width = System.Math.Min(image.Width, maximumSize);
+                        uint height = System.Math.Min(image.Height, maximumSize);
+
+                        Debug.Log($"将图片限制在 {width}×{width} 内：{image.Width}×{image.Height} → {width}×{height}。");
+
+                        image.Scale(width, height);
+                    }
+                }
+
+                Debug.Log($"转换图片，输出路径：{this.OutputFilePath}。");
+                switch (this.ConversionPreset.OutputType)
+                {
+                    case OutputType.Avif:
+                        image.Quality = this.ConversionPreset.GetSettingsValue<uint>(ConversionPreset.ConversionSettingKeys.ImageQuality);
+                        break;
+
+                    case OutputType.Png:
+                        // http://stackoverflow.com/questions/27267073/imagemagick-lossless-max-compression-for-png
+                        image.Quality = 95;
+                        break;
+
+                    case OutputType.Jpg:
+                        image.Quality = this.ConversionPreset.GetSettingsValue<uint>(ConversionPreset.ConversionSettingKeys.ImageQuality);
+                        break;
+
+                    case OutputType.Pdf:
+                        Debug.Log($"像素密度：{BaseDpiForPdfConversion} dpi。");
+                        image.Density = new Density(BaseDpiForPdfConversion);
+                        break;
+
+                    case OutputType.Webp:
+                        image.Quality = this.ConversionPreset.GetSettingsValue<uint>(ConversionPreset.ConversionSettingKeys.ImageQuality);
+                        break;
+
+                    default:
+                        this.ConversionFailed(string.Format(Properties.Resources.ErrorUnsupportedOutputFormat, this.ConversionPreset.OutputType));
+                        return;
+                }
+
+                image.Write(this.OutputFilePath);
+            }
+            finally
             {
-                case OutputType.Avif:
-                    image.Quality = this.ConversionPreset.GetSettingsValue<uint>(ConversionPreset.ConversionSettingKeys.ImageQuality);
-                    break;
-
-                case OutputType.Png:
-                    // http://stackoverflow.com/questions/27267073/imagemagick-lossless-max-compression-for-png
-                    image.Quality = 95;
-                    break;
-
-                case OutputType.Jpg:
-                    image.Quality = this.ConversionPreset.GetSettingsValue<uint>(ConversionPreset.ConversionSettingKeys.ImageQuality);
-                    break;
-
-                case OutputType.Pdf:
-                    Debug.Log($"Density: {BaseDpiForPdfConversion}dpi.");
-                    image.Density = new Density(BaseDpiForPdfConversion);
-                    break;
-
-                case OutputType.Webp:
-                    image.Quality = this.ConversionPreset.GetSettingsValue<uint>(ConversionPreset.ConversionSettingKeys.ImageQuality);
-                    break;
-
-                default:
-                    this.ConversionFailed(string.Format(Properties.Resources.ErrorUnsupportedOutputFormat, this.ConversionPreset.OutputType));
-                    image.Progress -= this.Image_Progress;
-                    return;
+                image.Progress -= this.Image_Progress;
             }
-
-            image.Write(this.OutputFilePath);
-            image.Progress -= this.Image_Progress;
         }
 
         private void Image_Progress(object sender, ProgressEventArgs eventArgs)

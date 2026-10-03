@@ -12,7 +12,7 @@ namespace FileConverter.Views
     using FileConverter.ViewModels;
 
     /// <summary>
-    /// Interaction logic for Settings.
+    /// 设置窗口的交互逻辑。
     /// </summary>
     public partial class SettingsWindow : Window
     {
@@ -88,7 +88,7 @@ namespace FileConverter.Views
         private void TreeView_MouseMove(object sender, MouseEventArgs args)
         {
             if (this.dragInProgress &&
-                args.LeftButton == MouseButtonState.Pressed && 
+                args.LeftButton == MouseButtonState.Pressed &&
                 this.PresetTreeView.SelectedItem is AbstractTreeNode nodeToDrag)
             {
                 var dataObj = new DataObject();
@@ -172,7 +172,7 @@ namespace FileConverter.Views
         {
             FrameworkElement source = args.OriginalSource as FrameworkElement;
             TreeViewItem item = this.GetNearestContainer(source);
-            
+
             target = item?.DataContext as AbstractTreeNode;
 
             Debug.Assert(source != null, "source should not be null");
@@ -227,7 +227,7 @@ namespace FileConverter.Views
 
         private bool CheckDropTarget(AbstractTreeNode sourceItem, AbstractTreeNode targetItem)
         {
-            // Check whether the target item is meeting your condition
+            // 检查目标项是否满足条件。
             if (targetItem == null)
             {
                 return false;
@@ -271,7 +271,7 @@ namespace FileConverter.Views
                         }
                         else
                         {
-                            Debug.LogError("Can move element in target.");
+                            Debug.LogError("无法将所选项移动到目标位置。");
                         }
                     }
 
@@ -291,7 +291,7 @@ namespace FileConverter.Views
 
         private TreeViewItem GetNearestContainer(UIElement element)
         {
-            // Walk up the element tree to the nearest tree view item.
+            // 沿元素树向上查找最近的树节点。
             TreeViewItem container = element as TreeViewItem;
             while (container == null && element != null)
             {
@@ -303,12 +303,12 @@ namespace FileConverter.Views
         }
 
         /// <summary>
-        /// Recursively search for an item in this subtree.
+        /// 递归查找子树中的指定项。
         /// </summary>
-        /// <param name="container">The parent ItemsControl. This can be a TreeView or a TreeViewItem.</param>
-        /// <param name="item">The item to search for.</param>
-        /// <returns>The TreeViewItem that contains the specified item.</returns>
-        /// Source: https://docs.microsoft.com/fr-fr/dotnet/framework/wpf/controls/how-to-find-a-treeviewitem-in-a-treeview
+        /// <param name="container">父级 ItemsControl，可以是 TreeView 或 TreeViewItem。</param>
+        /// <param name="item">要查找的项。</param>
+        /// <returns>包含指定项的 TreeViewItem。</returns>
+        /// 参考来源： https://docs.microsoft.com/fr-fr/dotnet/framework/wpf/controls/how-to-find-a-treeviewitem-in-a-treeview
         private TreeViewItem GetTreeViewItem(ItemsControl container, object item)
         {
             if (container != null)
@@ -323,7 +323,7 @@ namespace FileConverter.Views
                     TreeViewItem subContainer = (TreeViewItem)container.ItemContainerGenerator.ContainerFromIndex(i);
                     if (subContainer != null)
                     {
-                        // Search the next level for the object.
+                        // 在下一层查找目标对象。
                         TreeViewItem resultContainer = this.GetTreeViewItem(subContainer, item);
                         if (resultContainer != null)
                         {

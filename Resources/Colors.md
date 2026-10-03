@@ -1,9 +1,9 @@
-# File Converter Colors
+# 文件转换器配色
 
-Color       | Code      | Description
-------------|-----------|-------------------------------
-Blue        | #0171BB   | File Converter main color 
-Dark Blue   | #004B82   | File Converter main dark color 
-Red         | #FF4100   | Error
-Red         | #DF3900   | Title
-Grey        | #786C71   | Light text
+| 颜色 | 色值 | 用途 |
+| --- | --- | --- |
+| 蓝色 | `#0171BB` | 主色 |
+| 深蓝色 | `#004B82` | 深色主色 |
+| 红色 | `#FF4100` | 错误提示 |
+| 红色 | `#DF3900` | 标题 |
+| 灰色 | `#786C71` | 浅色文字 |

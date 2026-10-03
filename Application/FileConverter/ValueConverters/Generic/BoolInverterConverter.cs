@@ -12,7 +12,7 @@ namespace FileConverter.ValueConverters.Generic
         {
             if (!(value is bool))
             {
-                throw new System.ArgumentException("The object must be a boolean value.");
+                throw new System.ArgumentException("对象必须为布尔值。");
             }
 
             bool boolValue = (bool)value;

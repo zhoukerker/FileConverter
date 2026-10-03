@@ -3,6 +3,8 @@
 namespace FileConverter
 {
     using System.Linq;
+    using System;
+    using System.Collections.Generic;
     using System.Xml.Serialization;
     using System.Collections.ObjectModel;
     using System.Globalization;
@@ -15,11 +17,12 @@ namespace FileConverter
     {
         public const int Version = 4;
 
+        private static readonly CultureInfo SupportedCulture = CultureInfo.GetCultureInfo("zh-CN");
+
         private bool exitApplicationWhenConversionsFinished = false;
         private float durationBetweenEndOfConversionsAndApplicationExit = 3f;
         private ObservableCollection<ConversionPreset> conversionPresets = new ObservableCollection<ConversionPreset>();
         private bool checkUpgradeAtStartup = true;
-        private CultureInfo applicationLanguage;
         private int maximumNumberOfSimultaneousConversions;
         private bool copyFilesInClipboardAfterConversion = false;
         private Helpers.HardwareAccelerationMode hardwareAccelerationMode = Helpers.HardwareAccelerationMode.Off;
@@ -36,18 +39,24 @@ namespace FileConverter
                 this.ConversionPresets[index].Clean();
             }
         }
-        
+
         public Settings Merge(Settings settings)
         {
             if (settings == null || settings.conversionPresets == null)
             {
                 return this;
             }
-            
+
+            HashSet<string> presetNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (ConversionPreset existingPreset in this.conversionPresets)
+            {
+                presetNames.Add(existingPreset.FullName);
+            }
+
             for (int index = 0; index < settings.conversionPresets.Count; index++)
             {
                 ConversionPreset conversionPreset = settings.conversionPresets[index];
-                if (this.conversionPresets.Any(match => match.FullName == conversionPreset.FullName))
+                if (!presetNames.Add(conversionPreset.FullName))
                 {
                     continue;
                 }
@@ -68,61 +77,31 @@ namespace FileConverter
         [XmlIgnore]
         public CultureInfo ApplicationLanguage
         {
-            get
-            {
-                return this.applicationLanguage;
-            }
+            get => SupportedCulture;
 
             set
             {
-                if (this.applicationLanguage != null && this.applicationLanguage.Equals(value))
-                {
-                    return;
-                }
-
-                this.applicationLanguage = value;
-                if (this.applicationLanguage != null)
-                {
-                    System.Threading.Thread.CurrentThread.CurrentCulture = this.applicationLanguage;
-                    System.Threading.Thread.CurrentThread.CurrentUICulture = this.applicationLanguage;
-                }
-
-                this.OnPropertyChanged();
+                // 保留旧设置字段，但所有语言值均归一为简体中文。
+                System.Threading.Thread.CurrentThread.CurrentCulture = SupportedCulture;
+                System.Threading.Thread.CurrentThread.CurrentUICulture = SupportedCulture;
             }
         }
 
         [XmlElement]
         public string ApplicationLanguageName
         {
-            get
-            {
-                if (this.ApplicationLanguage == null)
-                {
-                    return string.Empty;
-                }
-
-                return this.ApplicationLanguage.Name;
-            }
+            get => SupportedCulture.Name;
 
             set
             {
-                if (string.IsNullOrEmpty(value))
-                {
-                    this.ApplicationLanguage = null;
-                    return;
-                }
-
-                this.ApplicationLanguage = CultureInfo.GetCultureInfo(value);
+                this.ApplicationLanguage = SupportedCulture;
             }
         }
 
         [XmlIgnore]
         public ObservableCollection<ConversionPreset> ConversionPresets
         {
-            get
-            {
-                return this.conversionPresets;
-            }
+            get => this.conversionPresets;
 
             set
             {
@@ -134,10 +113,7 @@ namespace FileConverter
         [XmlElement]
         public bool ExitApplicationWhenConversionsFinished
         {
-            get
-            {
-                return this.exitApplicationWhenConversionsFinished;
-            }
+            get => this.exitApplicationWhenConversionsFinished;
 
             set
             {
@@ -149,10 +125,7 @@ namespace FileConverter
         [XmlElement]
         public float DurationBetweenEndOfConversionsAndApplicationExit
         {
-            get
-            {
-                return this.durationBetweenEndOfConversionsAndApplicationExit;
-            }
+            get => this.durationBetweenEndOfConversionsAndApplicationExit;
 
             set
             {
@@ -164,10 +137,7 @@ namespace FileConverter
         [XmlElement]
         public int MaximumNumberOfSimultaneousConversions
         {
-            get
-            {
-                return this.maximumNumberOfSimultaneousConversions;
-            }
+            get => this.maximumNumberOfSimultaneousConversions;
 
             set
             {
@@ -179,10 +149,7 @@ namespace FileConverter
         [XmlElement("ConversionPreset")]
         public ConversionPreset[] SerializableConversionPresets
         {
-            get
-            {
-                return this.ConversionPresets.ToArray();
-            }
+            get => this.ConversionPresets.ToArray();
 
             set
             {
@@ -196,10 +163,7 @@ namespace FileConverter
         [XmlElement]
         public bool CheckUpgradeAtStartup
         {
-            get
-            {
-                return this.checkUpgradeAtStartup;
-            }
+            get => this.checkUpgradeAtStartup;
 
             set
             {
@@ -211,10 +175,7 @@ namespace FileConverter
         [XmlElement]
         public bool CopyFilesInClipboardAfterConversion
         {
-            get
-            {
-                return this.copyFilesInClipboardAfterConversion;
-            }
+            get => this.copyFilesInClipboardAfterConversion;
 
             set
             {
@@ -226,10 +187,7 @@ namespace FileConverter
         [XmlElement]
         public Helpers.HardwareAccelerationMode HardwareAccelerationMode
         {
-            get
-            {
-                return this.hardwareAccelerationMode;
-            }
+            get => this.hardwareAccelerationMode;
 
             set
             {
@@ -246,34 +204,8 @@ namespace FileConverter
                 this.ConversionPresets[index].OnDeserializationComplete();
             }
 
-            // Initialize application if it was not deserialized from the settings.
-            if (this.ApplicationLanguage == null)
-            {
-                CultureInfo bestCandidate = null;
-                CultureInfo currentUICulture = System.Threading.Thread.CurrentThread.CurrentUICulture;
-                foreach (CultureInfo culture in Helpers.GetSupportedCultures())
-                {
-                    if (culture.Equals(currentUICulture))
-                    {
-                        bestCandidate = culture;
-                        break;
-                    }
-                    else if (culture.Equals(currentUICulture.Parent))
-                    {
-                        bestCandidate = culture;
-                    }
-                }
-
-                if (bestCandidate != null)
-                {
-                    this.ApplicationLanguage = bestCandidate;
-                }
-                else
-                {
-                    Diagnostics.Debug.Log($"Can't find supported culture info for culture {currentUICulture}. Fallback to default culture.");
-                    this.ApplicationLanguage = CultureInfo.GetCultureInfo("en");
-                }
-            }
+            // 兼容未保存语言字段的旧配置，并应用当前线程文化。
+            this.ApplicationLanguage = SupportedCulture;
         }
     }
 }

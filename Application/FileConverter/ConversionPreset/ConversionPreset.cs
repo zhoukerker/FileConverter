@@ -16,6 +16,8 @@ namespace FileConverter
     public class ConversionPreset : ObservableObject, IXmlSerializable
     {
         private string shortName;
+        private string[] parentFoldersNames;
+        private bool isDefaultSettings;
 
         private OutputType outputType;
         private List<string> inputTypes;
@@ -89,7 +91,7 @@ namespace FileConverter
                 string[] folders = value.Split('/');
                 if (folders.Length == 0)
                 {
-                    Diagnostics.Debug.Log("Invalid full name.");
+                    Diagnostics.Debug.Log("预设完整名称无效。");
                     this.ShortName = value;
                     return;
                 }
@@ -108,16 +110,34 @@ namespace FileConverter
 
             set
             {
-                this.shortName = value;
-                this.OnPropertyChanged();
+                if (this.SetProperty(ref this.shortName, value))
+                {
+                    this.OnPropertyChanged(nameof(this.FullName));
+                    this.OnPropertyChanged(nameof(this.DisplayName));
+                    this.OnPropertyChanged(nameof(this.DisplayFullName));
+                }
             }
         }
 
         [XmlIgnore]
+        public string DisplayName => FileConverterExtension.PresetDisplayNames.GetName(this.ShortName, this.IsDefaultSettings);
+
+        [XmlIgnore]
+        public string DisplayFullName => FileConverterExtension.PresetDisplayNames.GetName(this.FullName, this.IsDefaultSettings);
+
+        [XmlIgnore]
         public string[] ParentFoldersNames
         {
-            get;
-            set;
+            get => this.parentFoldersNames;
+
+            set
+            {
+                if (this.SetProperty(ref this.parentFoldersNames, value))
+                {
+                    this.OnPropertyChanged(nameof(this.FullName));
+                    this.OnPropertyChanged(nameof(this.DisplayFullName));
+                }
+            }
         }
 
         [XmlAttribute]
@@ -137,17 +157,22 @@ namespace FileConverter
         [XmlAttribute]
         public bool IsDefaultSettings
         {
-            get;
-            set;
+            get => this.isDefaultSettings;
+
+            set
+            {
+                if (this.SetProperty(ref this.isDefaultSettings, value))
+                {
+                    this.OnPropertyChanged(nameof(this.DisplayName));
+                    this.OnPropertyChanged(nameof(this.DisplayFullName));
+                }
+            }
         }
 
         [XmlElement]
         public List<string> InputTypes
         {
-            get
-            {
-                return this.inputTypes;
-            }
+            get => this.inputTypes;
 
             set
             {
@@ -164,10 +189,7 @@ namespace FileConverter
         [XmlElement]
         public InputPostConversionAction InputPostConversionAction
         {
-            get
-            {
-                return this.inputPostConversionAction;
-            }
+            get => this.inputPostConversionAction;
 
             set
             {
@@ -198,7 +220,7 @@ namespace FileConverter
                 {
                     for (int index = 0; index < value.Length; index++)
                     {
-                        // Compatibility issues.
+                        // 兼容旧版设置键。
                         if (value[index].Key == "Bitrate")
                         {
                             this.SetSettingsValue(ConversionSettingKeys.AudioBitrate, value[index].Value);
@@ -211,7 +233,7 @@ namespace FileConverter
                             continue;
                         }
 
-                        // Load settings.
+                        // 加载设置值。
                         this.SetSettingsValue(value[index].Key, value[index].Value);
                     }
                 }
@@ -223,10 +245,7 @@ namespace FileConverter
         [XmlElement]
         public string OutputFileNameTemplate
         {
-            get
-            {
-                return this.outputFileNameTemplate;
-            }
+            get => this.outputFileNameTemplate;
 
             set
             {
@@ -238,10 +257,7 @@ namespace FileConverter
         [XmlIgnore]
         public string ConversionArchiveFolderName
         {
-            get
-            {
-                return Properties.Resources.ConversionArchives;
-            }
+            get => Properties.Resources.ConversionArchives;
         }
 
         [XmlIgnore]
@@ -274,7 +290,7 @@ namespace FileConverter
 
         public void Clean()
         {
-            // Remove unrelevant settings.
+            // 移除与当前输出格式无关的设置。
             List<string> settingsToRemove = new List<string>();
             foreach (string settingsKey in this.settings.Keys)
             {
@@ -414,7 +430,7 @@ namespace FileConverter
 
             switch (outputType)
             {
-                // Audio
+                // 音频格式。
                 case OutputType.Aac:
                     this.InitializeSettingsValue(ConversionPreset.ConversionSettingKeys.AudioBitrate, "128");
                     this.InitializeSettingsValue(ConversionPreset.ConversionSettingKeys.AudioChannelCount, "0");
@@ -450,7 +466,7 @@ namespace FileConverter
                     this.InitializeSettingsValue(ConversionPreset.ConversionSettingKeys.FFMPEGCustomCommand, string.Empty);
                     break;
 
-                // Video
+                // 视频格式。
                 case OutputType.Avi:
                     this.InitializeSettingsValue(ConversionPreset.ConversionSettingKeys.EnableAudio, "True");
                     this.InitializeSettingsValue(ConversionPreset.ConversionSettingKeys.VideoQuality, "20");
@@ -503,7 +519,7 @@ namespace FileConverter
                     this.InitializeSettingsValue(ConversionPreset.ConversionSettingKeys.FFMPEGCustomCommand, string.Empty);
                     break;
 
-                // Images
+                // 图像格式。
                 case OutputType.Avif:
                     this.InitializeSettingsValue(ConversionPreset.ConversionSettingKeys.ImageQuality, "50");
                     this.InitializeSettingsValue(ConversionPreset.ConversionSettingKeys.ImageScale, "1");
@@ -544,12 +560,12 @@ namespace FileConverter
                 case OutputType.Ico:
                     break;
 
-                // Documents
+                // 文档格式。
                 case OutputType.Pdf:
                     break;
 
                 default:
-                    throw new System.Exception("Missing default settings for type " + outputType);
+                    throw new System.Exception("输出格式缺少默认设置：" + outputType);
             }
 
             this.OnPropertyChanged(nameof(this.Settings));

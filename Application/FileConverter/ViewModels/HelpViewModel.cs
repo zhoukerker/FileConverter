@@ -1,4 +1,4 @@
-// <copyright file="HelpViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
+﻿// <copyright file="HelpViewModel.cs" company="AAllard">License: http://www.gnu.org/licenses/gpl.html GPL version 3.</copyright>
 
 namespace FileConverter.ViewModels
 {
@@ -12,14 +12,14 @@ namespace FileConverter.ViewModels
     using FileConverter.Services;
 
     /// <summary>
-    /// This class contains properties that the main View can data bind to.
+    /// 提供帮助视图的数据绑定属性。
     /// </summary>
     public class HelpViewModel : ObservableRecipient
     {
         private RelayCommand<CancelEventArgs> closeCommand;
 
         /// <summary>
-        /// Initializes a new instance of the HelpViewModel class.
+        /// 初始化帮助视图模型。
         /// </summary>
         public HelpViewModel()
         {
